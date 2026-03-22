@@ -15,7 +15,7 @@ class MC_Points_Admin {
     }
 
     public function register_global_settings() {
-        // Points Options Group
+        // Main Points Options Group
         register_setting('mc_loyalty_options_group', 'mc_pts_assign_type');
         register_setting('mc_loyalty_options_group', 'mc_pts_assign_roles');
         register_setting('mc_loyalty_options_group', 'mc_pts_specific_roles'); 
@@ -62,17 +62,13 @@ class MC_Points_Admin {
         register_setting('mc_loyalty_options_group', 'mc_pts_extra_cart_pts');
         register_setting('mc_loyalty_options_group', 'mc_pts_extra_cart_threshold');
         
-        // LEVELS & BADGES SETTINGS
+        // LEVELS, BANNERS, RANKING
         register_setting('mc_loyalty_options_group', 'mc_pts_levels');
-        
-        // BANNERS SETTINGS 
         register_setting('mc_loyalty_options_group', 'mc_pts_banners');
-        
-        // RANKING SETTINGS
         register_setting('mc_loyalty_options_group', 'mc_pts_ranking_enable');
         register_setting('mc_loyalty_options_group', 'mc_pts_ranking_my_account');
         
-        // REDEEMING OPTIONS
+        // REDEEMING OPTIONS (Global)
         register_setting('mc_loyalty_options_group', 'mc_pts_allow_redeem');
         register_setting('mc_loyalty_options_group', 'mc_pts_redeem_user_type');
         register_setting('mc_loyalty_options_group', 'mc_pts_redeem_specific_roles');
@@ -100,7 +96,7 @@ class MC_Points_Admin {
         register_setting('mc_loyalty_options_group', 'mc_pts_redeem_rules');
 
         // ==============================================
-        // THE FIX: ISOLATED PRODUCT-LEVEL GROUPS
+        // ISOLATED PRODUCT-LEVEL GROUPS
         // ==============================================
         
         // General Tab Group
@@ -115,6 +111,9 @@ class MC_Points_Admin {
 
         // Bulk Costs Tab Group
         register_setting('mc_prod_bulk_group', 'mc_pts_bulk_costs');
+
+        // Auto-Giveaways Tab Group
+        register_setting('mc_prod_giveaway_group', 'mc_pts_auto_giveaways');
     }
 
 
