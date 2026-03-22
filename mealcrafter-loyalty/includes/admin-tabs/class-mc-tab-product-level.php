@@ -12,7 +12,7 @@ class MC_Tab_Product_Level {
         $subtabs = [
             'general'        => 'General Settings',
             'bulk-costs'     => 'Bulk Cost Assignment',
-            'auto-giveaways' => 'Auto-Giveaways',
+            'auto-giveaways' => 'Auto-Giveaways (Smart Triggers)',
             'catalog'        => 'Reward Catalog',
             'checkout-ui'    => 'Checkout UI & Popups'
         ];
