@@ -226,77 +226,87 @@
 
 <script>
 jQuery(document).ready(function($) {
-    // THE FIX: Bulletproof the entire Javascript block so it NEVER crashes
-    try {
-        let wc_nonce = typeof wc_enhanced_select_params !== 'undefined' ? wc_enhanced_select_params.search_products_nonce : '';
-        let cat_nonce = typeof wc_enhanced_select_params !== 'undefined' ? wc_enhanced_select_params.search_categories_nonce : '';
-        let tag_nonce = typeof wc_enhanced_select_params !== 'undefined' ? wc_enhanced_select_params.search_tags_nonce : '';
+    
+    // 1. BULLETPROOF UI BUTTONS (These execute instantly and safely)
+    $(document).on('click', '.mc-rule-card-header', function(e) {
+        if($(e.target).closest('.mc-remove-bulk-cost, .mc-toggle-switch, input').length) return;
+        var $body = $(this).siblings('.mc-rule-card-body');
+        var $indicator = $(this).find('.mc-toggle-indicator');
+        $body.slideToggle(200, function() {
+            if($body.is(':visible')) { $indicator.text('▲'); } else { $indicator.text('▼'); }
+        });
+    });
 
-        function initSelect2Fields(container) {
-            if(!$.fn.select2) return;
+    $(document).on('input', '.mc-rule-name-input', function() {
+        var val = $(this).val();
+        $(this).closest('.mc-rule-card').find('.mc-rule-title-display').text(val ? val : 'Unnamed Bulk Rule');
+    });
 
-            container.find('.wc-product-search').filter(':not(.select2-hidden-accessible)').select2({
-                allowClear: true, minimumInputLength: 3,
-                ajax: { url: ajaxurl, dataType: 'json', delay: 250, data: function(params) { return { term: params.term, action: 'woocommerce_json_search_products_and_variations', security: wc_nonce }; }, processResults: function(data) { var terms = []; if (data) { $.each(data, function(id, text) { terms.push({ id: id, text: text }); }); } return { results: terms }; }, cache: true }
-            });
-            container.find('.wc-category-search').filter(':not(.select2-hidden-accessible)').select2({
-                allowClear: true, minimumInputLength: 2,
-                ajax: { url: ajaxurl, dataType: 'json', delay: 250, data: function(params) { return { term: params.term, action: 'woocommerce_json_search_categories', security: cat_nonce }; }, processResults: function(data) { var terms = []; if (data) { $.each(data, function(id, text) { terms.push({ id: id, text: text }); }); } return { results: terms }; }, cache: true }
-            });
-            container.find('.wc-tag-search').filter(':not(.select2-hidden-accessible)').select2({
-                allowClear: true, minimumInputLength: 2,
-                ajax: { url: ajaxurl, dataType: 'json', delay: 250, data: function(params) { return { term: params.term, action: 'woocommerce_json_search_tags', security: tag_nonce }; }, processResults: function(data) { var terms = []; if (data) { $.each(data, function(id, text) { terms.push({ id: id, text: text }); }); } return { results: terms }; }, cache: true }
-            });
+    $(document).on('change', '.mc-bulk-target-select', function() {
+        var $card = $(this).closest('.mc-rule-card');
+        var val = $(this).val();
+        $card.find('.mc-rule-type-badge').text(val.replace('_', ' '));
+        $card.find('.mc-target-wrap').hide();
+        $card.find('.mc-target-' + val).show();
+    });
+
+    $(document).on('click', '.mc-remove-bulk-cost', function(e) {
+        e.preventDefault();
+        if(confirm('Delete this rule? Click "Save Bulk Rules" below to permanently remove it.')) {
+            var $card = $(this).closest('.mc-rule-card');
+            // Remove inputs so WP doesn't save them
+            $card.find('input, select, textarea').remove(); 
+            $card.slideUp(300, function() { $(this).remove(); });
         }
+    });
 
-        initSelect2Fields($('#mc-bulk-costs-container'));
+    // 2. SAFE ADD BUTTON AND SELECT2 INITIALIZATION
+    window.initMcSelect2 = function($container) {
+        try {
+            if(typeof $.fn.select2 === 'undefined') return;
 
-        $(document).on('click', '.mc-rule-card-header', function(e) {
-            if($(e.target).closest('.mc-remove-bulk-cost, .mc-toggle-switch, input').length) return;
-            let $body = $(this).siblings('.mc-rule-card-body');
-            let $indicator = $(this).find('.mc-toggle-indicator');
-            $body.slideToggle(200, function() {
-                if($body.is(':visible')) { $indicator.text('▲'); } else { $indicator.text('▼'); }
+            var wc_nonce = typeof wc_enhanced_select_params !== 'undefined' ? wc_enhanced_select_params.search_products_nonce : '';
+            var cat_nonce = typeof wc_enhanced_select_params !== 'undefined' ? wc_enhanced_select_params.search_categories_nonce : '';
+            var tag_nonce = typeof wc_enhanced_select_params !== 'undefined' ? wc_enhanced_select_params.search_tags_nonce : '';
+
+            $container.find('.wc-product-search:not(.select2-hidden-accessible)').select2({
+                allowClear: true, minimumInputLength: 3,
+                ajax: { url: ajaxurl, dataType: 'json', delay: 250, data: function(p) { return { term: p.term, action: 'woocommerce_json_search_products_and_variations', security: wc_nonce }; }, processResults: function(d) { var t = []; if (d) { $.each(d, function(id, text) { t.push({ id: id, text: text }); }); } return { results: t }; }, cache: true }
             });
-        });
 
-        $(document).on('input', '.mc-rule-name-input', function() {
-            let val = $(this).val();
-            $(this).closest('.mc-rule-card').find('.mc-rule-title-display').text(val ? val : 'Unnamed Bulk Rule');
-        });
+            $container.find('.wc-category-search:not(.select2-hidden-accessible)').select2({
+                allowClear: true, minimumInputLength: 2,
+                ajax: { url: ajaxurl, dataType: 'json', delay: 250, data: function(p) { return { term: p.term, action: 'woocommerce_json_search_categories', security: cat_nonce }; }, processResults: function(d) { var t = []; if (d) { $.each(d, function(id, text) { t.push({ id: id, text: text }); }); } return { results: t }; }, cache: true }
+            });
 
-        $(document).on('change', '.mc-bulk-target-select', function() {
-            let $card = $(this).closest('.mc-rule-card');
-            let val = $(this).val();
-            $card.find('.mc-rule-type-badge').text(val.replace('_', ' '));
-            $card.find('.mc-target-wrap').hide();
-            $card.find('.mc-target-' + val).show();
-        });
+            $container.find('.wc-tag-search:not(.select2-hidden-accessible)').select2({
+                allowClear: true, minimumInputLength: 2,
+                ajax: { url: ajaxurl, dataType: 'json', delay: 250, data: function(p) { return { term: p.term, action: 'woocommerce_json_search_tags', security: tag_nonce }; }, processResults: function(d) { var t = []; if (d) { $.each(d, function(id, text) { t.push({ id: id, text: text }); }); } return { results: t }; }, cache: true }
+            });
+        } catch(err) {
+            console.warn("MealCrafter: Select2 search failed, but UI is protected.");
+        }
+    };
 
-        $('#mc-add-new-bulk-cost').on('click', function(e) {
-            e.preventDefault();
-            $('#mc-no-bulk-costs-msg').hide();
-            let uniqueId = 'bulk_' + Date.now();
-            let template = $('#mc-bulk-cost-template').html().replace(/{id}/g, uniqueId);
-            
-            $('#mc-bulk-costs-container').append(template);
-            let $newCard = $('#mc-bulk-costs-container .mc-existing-rule').last();
-            initSelect2Fields($newCard);
-            $newCard.find('.mc-rule-card-body').slideDown();
-            $newCard.find('.mc-toggle-indicator').text('▲');
-        });
+    // Initialize the boxes currently on the page
+    window.initMcSelect2($('#mc-bulk-costs-container'));
 
-        $(document).on('click', '.mc-remove-bulk-cost', function(e) {
-            e.preventDefault();
-            if(confirm('Delete this rule? Click Save Bulk Rules below to permanently remove it.')) {
-                let $card = $(this).closest('.mc-rule-card');
-                $card.find('input, select, textarea').remove(); 
-                $card.slideUp(300, function() { $(this).remove(); });
-            }
-        });
+    // The Add Button logic
+    $('#mc-add-new-bulk-cost').on('click', function(e) {
+        e.preventDefault();
+        $('#mc-no-bulk-costs-msg').hide();
+        var uniqueId = 'bulk_' + Date.now();
+        var template = $('#mc-bulk-cost-template').html().replace(/{id}/g, uniqueId);
+        
+        $('#mc-bulk-costs-container').append(template);
+        var $newCard = $('#mc-bulk-costs-container .mc-existing-rule').last();
+        
+        $newCard.find('.mc-rule-card-body').show();
+        $newCard.find('.mc-toggle-indicator').text('▲');
 
-    } catch(err) {
-        console.error("MealCrafter Loyalty JS Error:", err);
-    }
+        // Safely init the search bars on the new card
+        window.initMcSelect2($newCard);
+    });
+
 });
 </script>
