@@ -2,7 +2,7 @@
 /**
  * Plugin Name: MealCrafter - Points & Rewards
  * Description: Hybrid loyalty system with cash conversion, inline checkout redemption, and account progress tracking.
- * Version: 1.0.3
+ * Version: 1.0.4
  * Author: Sling
  */
 
