@@ -1,4 +1,39 @@
-<?php if ( ! defined( 'ABSPATH' ) ) exit; ?>
+<?php 
+if ( ! defined( 'ABSPATH' ) ) exit; 
+
+// ====================================================================
+// 1. PHP HELPER FUNCTION (Must be at the top to prevent page crashes)
+// ====================================================================
+if (!function_exists('mc_render_select2_field')) {
+    function mc_render_select2_field($name, $saved_values, $class, $placeholder) {
+        // Safety check for corrupted database arrays
+        if (!is_array($saved_values)) {
+            $saved_values = !empty($saved_values) ? [(int)$saved_values] : [];
+        }
+        
+        echo '<select name="' . esc_attr($name) . '" class="mc-select2 ' . esc_attr($class) . '" multiple="multiple" style="width:100%; max-width:400px;" data-placeholder="' . esc_attr($placeholder) . '">';
+        if(!empty($saved_values)) {
+            if(strpos($class, 'product-search') !== false) {
+                foreach($saved_values as $item_id) {
+                    $product = wc_get_product($item_id);
+                    if($product) echo '<option value="'.esc_attr($item_id).'" selected="selected">'.wp_kses_post($product->get_formatted_name()).'</option>';
+                }
+            } elseif(strpos($class, 'category-search') !== false) {
+                foreach($saved_values as $item_id) {
+                    $term = get_term_by('id', $item_id, 'product_cat');
+                    if($term) echo '<option value="'.esc_attr($item_id).'" selected="selected">'.esc_html($term->name).'</option>';
+                }
+            } elseif(strpos($class, 'tag-search') !== false) {
+                foreach($saved_values as $item_id) {
+                    $term = get_term_by('id', $item_id, 'product_tag');
+                    if($term) echo '<option value="'.esc_attr($item_id).'" selected="selected">'.esc_html($term->name).'</option>';
+                }
+            }
+        }
+        echo '</select>';
+    }
+}
+?>
 
 <div style="margin-bottom:20px; display:flex; justify-content:flex-end;">
     <button type="button" id="mc-add-new-bulk-cost" style="background:#2271b1; color:#fff; border:none; padding:8px 16px; border-radius:4px; font-weight:600; cursor:pointer; font-size:13px;">+ Add Bulk Cost Rule</button>
@@ -19,11 +54,10 @@
         if (!is_array($all_rules)) $all_rules = [];
 
         $rules = array_filter($all_rules, function($r) {
-            return !empty($r['id']) && $r['id'] !== '__empty__' && $r['id'] !== '{id}';
+            return is_array($r) && !empty($r['id']) && $r['id'] !== '__empty__' && $r['id'] !== '{id}';
         });
 
-        // Sort rules by Priority (lowest number first)
-        usort($rules, function($a, $b) { return ($a['priority'] ?? 10) <=> ($b['priority'] ?? 10); });
+        usort($rules, function($a, $b) { return ((int)($a['priority'] ?? 10)) <=> ((int)($b['priority'] ?? 10)); });
 
         if(empty($rules)) {
             echo '<div class="mc-rule-card" id="mc-no-bulk-costs-msg" style="padding:40px; text-align:center; background:#f9f9f9;"><p style="margin:0; color:#777; font-size:15px;">No bulk cost rules created yet. Click "Add Bulk Cost Rule" above to get started.</p></div>';
@@ -73,10 +107,6 @@
                         <div class="mc-toggle-row">
                             <div class="mc-form-info" style="margin:0;">
                                 <span class="mc-form-label" style="color:#d63638;">Force Override Individual Product Settings</span>
-                                <span class="mc-form-desc">
-                                    If <strong>disabled</strong>, any point cost typed directly on an individual product's edit page will "win" and override this bulk rule.<br>
-                                    If <strong>enabled</strong>, this rule crushes everything. Great for weekend specials.
-                                </span>
                             </div>
                             <label class="mc-toggle-switch">
                                 <input type="hidden" name="mc_pts_bulk_costs[<?php echo $id; ?>][force_override]" value="no">
@@ -98,13 +128,13 @@
                                 </select>
                                 
                                 <div class="mc-target-categories mc-target-wrap" style="<?php echo $tgt_type === 'categories' ? 'display:block;' : 'display:none;'; ?>">
-                                    <?php mc_render_select2_field('mc_pts_bulk_costs['.$id.'][target_categories][]', $rule['target_categories'] ?? [], 'wc-category-search', 'Search and select categories...'); ?>
+                                    <?php mc_render_select2_field('mc_pts_bulk_costs['.$id.'][target_categories][]', $rule['target_categories'] ?? [], 'mc-ajax-category-search', 'Search and select categories...'); ?>
                                 </div>
                                 <div class="mc-target-tags mc-target-wrap" style="<?php echo $tgt_type === 'tags' ? 'display:block;' : 'display:none;'; ?>">
-                                    <?php mc_render_select2_field('mc_pts_bulk_costs['.$id.'][target_tags][]', $rule['target_tags'] ?? [], 'wc-tag-search', 'Search and select tags...'); ?>
+                                    <?php mc_render_select2_field('mc_pts_bulk_costs['.$id.'][target_tags][]', $rule['target_tags'] ?? [], 'mc-ajax-tag-search', 'Search and select tags...'); ?>
                                 </div>
                                 <div class="mc-target-specific_products mc-target-wrap" style="<?php echo $tgt_type === 'specific_products' ? 'display:block;' : 'display:none;'; ?>">
-                                    <?php mc_render_select2_field('mc_pts_bulk_costs['.$id.'][target_products_list][]', $rule['target_products_list'] ?? [], 'wc-product-search', 'Search and select products...'); ?>
+                                    <?php mc_render_select2_field('mc_pts_bulk_costs['.$id.'][target_products_list][]', $rule['target_products_list'] ?? [], 'mc-ajax-product-search', 'Search and select products...'); ?>
                                 </div>
                             </div>
                         </div>
@@ -112,32 +142,6 @@
                     </div>
                 </div>
                 <?php
-            }
-        }
-
-        if (!function_exists('mc_render_select2_field')) {
-            function mc_render_select2_field($name, $saved_values, $class, $placeholder) {
-                if(!is_array($saved_values)) $saved_values = [];
-                echo '<select name="' . esc_attr($name) . '" class="mc-select2 ' . esc_attr($class) . '" multiple="multiple" style="width:100%; max-width:400px;" data-placeholder="' . esc_attr($placeholder) . '">';
-                if(!empty($saved_values)) {
-                    if($class === 'wc-product-search') {
-                        foreach($saved_values as $item_id) {
-                            $product = wc_get_product($item_id);
-                            if($product) echo '<option value="'.esc_attr($item_id).'" selected="selected">'.wp_kses_post($product->get_formatted_name()).'</option>';
-                        }
-                    } elseif($class === 'wc-category-search') {
-                        foreach($saved_values as $item_id) {
-                            $term = get_term_by('id', $item_id, 'product_cat');
-                            if($term) echo '<option value="'.esc_attr($item_id).'" selected="selected">'.esc_html($term->name).'</option>';
-                        }
-                    } elseif($class === 'wc-tag-search') {
-                        foreach($saved_values as $item_id) {
-                            $term = get_term_by('id', $item_id, 'product_tag');
-                            if($term) echo '<option value="'.esc_attr($item_id).'" selected="selected">'.esc_html($term->name).'</option>';
-                        }
-                    }
-                }
-                echo '</select>';
             }
         }
         ?>
@@ -187,10 +191,6 @@
             <div class="mc-toggle-row">
                 <div class="mc-form-info" style="margin:0;">
                     <span class="mc-form-label" style="color:#d63638;">Force Override Individual Product Settings</span>
-                    <span class="mc-form-desc">
-                        If <strong>disabled</strong>, any point cost typed directly on an individual product's edit page will "win" and override this bulk rule.<br>
-                        If <strong>enabled</strong>, this rule crushes everything. Great for weekend specials.
-                    </span>
                 </div>
                 <label class="mc-toggle-switch">
                     <input type="hidden" name="mc_pts_bulk_costs[{id}][force_override]" value="no">
@@ -210,13 +210,13 @@
                         <option value="specific_products">Specific Products</option>
                     </select>
                     <div class="mc-target-categories mc-target-wrap" style="display:block;">
-                        <select name="mc_pts_bulk_costs[{id}][target_categories][]" class="mc-select2 wc-category-search" multiple="multiple" style="width:100%; max-width:400px;" data-placeholder="Search and select categories..."></select>
+                        <select name="mc_pts_bulk_costs[{id}][target_categories][]" class="mc-select2 mc-ajax-category-search" multiple="multiple" style="width:100%; max-width:400px;" data-placeholder="Search and select categories..."></select>
                     </div>
                     <div class="mc-target-tags mc-target-wrap" style="display:none;">
-                        <select name="mc_pts_bulk_costs[{id}][target_tags][]" class="mc-select2 wc-tag-search" multiple="multiple" style="width:100%; max-width:400px;" data-placeholder="Search and select tags..."></select>
+                        <select name="mc_pts_bulk_costs[{id}][target_tags][]" class="mc-select2 mc-ajax-tag-search" multiple="multiple" style="width:100%; max-width:400px;" data-placeholder="Search and select tags..."></select>
                     </div>
                     <div class="mc-target-specific_products mc-target-wrap" style="display:none;">
-                        <select name="mc_pts_bulk_costs[{id}][target_products_list][]" class="mc-select2 wc-product-search" multiple="multiple" style="width:100%; max-width:400px;" data-placeholder="Search and select products..."></select>
+                        <select name="mc_pts_bulk_costs[{id}][target_products_list][]" class="mc-select2 mc-ajax-product-search" multiple="multiple" style="width:100%; max-width:400px;" data-placeholder="Search and select products..."></select>
                     </div>
                 </div>
             </div>
@@ -227,85 +227,82 @@
 <script>
 jQuery(document).ready(function($) {
     
-    // 1. BULLETPROOF UI BUTTONS (These execute instantly and safely)
+    // SAFE SELECT2 INITIALIZATION
+    function initSelect2(container) {
+        try {
+            if(!$.fn.select2) return;
+            let wc_nonce = typeof wc_enhanced_select_params !== 'undefined' ? wc_enhanced_select_params.search_products_nonce : '';
+            let cat_nonce = typeof wc_enhanced_select_params !== 'undefined' ? wc_enhanced_select_params.search_categories_nonce : '';
+            let tag_nonce = typeof wc_enhanced_select_params !== 'undefined' ? wc_enhanced_select_params.search_tags_nonce : '';
+
+            container.find('.mc-ajax-product-search:not(.select2-hidden-accessible)').select2({
+                allowClear: true, minimumInputLength: 3,
+                ajax: { url: ajaxurl, dataType: 'json', delay: 250, data: function(params) { return { term: params.term, action: 'woocommerce_json_search_products_and_variations', security: wc_nonce }; }, processResults: function(data) { var terms = []; if (data) { $.each(data, function(id, text) { terms.push({ id: id, text: text }); }); } return { results: terms }; }, cache: true }
+            });
+
+            container.find('.mc-ajax-category-search:not(.select2-hidden-accessible)').select2({
+                allowClear: true, minimumInputLength: 2,
+                ajax: { url: ajaxurl, dataType: 'json', delay: 250, data: function(params) { return { term: params.term, action: 'woocommerce_json_search_categories', security: cat_nonce }; }, processResults: function(data) { var terms = []; if (data) { $.each(data, function(id, text) { terms.push({ id: id, text: text }); }); } return { results: terms }; }, cache: true }
+            });
+
+            container.find('.mc-ajax-tag-search:not(.select2-hidden-accessible)').select2({
+                allowClear: true, minimumInputLength: 2,
+                ajax: { url: ajaxurl, dataType: 'json', delay: 250, data: function(params) { return { term: params.term, action: 'woocommerce_json_search_tags', security: tag_nonce }; }, processResults: function(data) { var terms = []; if (data) { $.each(data, function(id, text) { terms.push({ id: id, text: text }); }); } return { results: terms }; }, cache: true }
+            });
+        } catch(err) { console.error("Select2 Error:", err); }
+    }
+
+    initSelect2($('#mc-bulk-costs-container'));
+
+    // Accordion Control
     $(document).on('click', '.mc-rule-card-header', function(e) {
         if($(e.target).closest('.mc-remove-bulk-cost, .mc-toggle-switch, input').length) return;
-        var $body = $(this).siblings('.mc-rule-card-body');
-        var $indicator = $(this).find('.mc-toggle-indicator');
+        let $body = $(this).siblings('.mc-rule-card-body');
+        let $indicator = $(this).find('.mc-toggle-indicator');
         $body.slideToggle(200, function() {
             if($body.is(':visible')) { $indicator.text('▲'); } else { $indicator.text('▼'); }
         });
     });
 
+    // Update Badge Title
     $(document).on('input', '.mc-rule-name-input', function() {
-        var val = $(this).val();
+        let val = $(this).val();
         $(this).closest('.mc-rule-card').find('.mc-rule-title-display').text(val ? val : 'Unnamed Bulk Rule');
     });
 
+    // Switch Targeting
     $(document).on('change', '.mc-bulk-target-select', function() {
-        var $card = $(this).closest('.mc-rule-card');
-        var val = $(this).val();
+        let $card = $(this).closest('.mc-rule-card');
+        let val = $(this).val();
         $card.find('.mc-rule-type-badge').text(val.replace('_', ' '));
         $card.find('.mc-target-wrap').hide();
         $card.find('.mc-target-' + val).show();
     });
 
-    $(document).on('click', '.mc-remove-bulk-cost', function(e) {
-        e.preventDefault();
-        if(confirm('Delete this rule? Click "Save Bulk Rules" below to permanently remove it.')) {
-            var $card = $(this).closest('.mc-rule-card');
-            // Remove inputs so WP doesn't save them
-            $card.find('input, select, textarea').remove(); 
-            $card.slideUp(300, function() { $(this).remove(); });
-        }
-    });
-
-    // 2. SAFE ADD BUTTON AND SELECT2 INITIALIZATION
-    window.initMcSelect2 = function($container) {
-        try {
-            if(typeof $.fn.select2 === 'undefined') return;
-
-            var wc_nonce = typeof wc_enhanced_select_params !== 'undefined' ? wc_enhanced_select_params.search_products_nonce : '';
-            var cat_nonce = typeof wc_enhanced_select_params !== 'undefined' ? wc_enhanced_select_params.search_categories_nonce : '';
-            var tag_nonce = typeof wc_enhanced_select_params !== 'undefined' ? wc_enhanced_select_params.search_tags_nonce : '';
-
-            $container.find('.wc-product-search:not(.select2-hidden-accessible)').select2({
-                allowClear: true, minimumInputLength: 3,
-                ajax: { url: ajaxurl, dataType: 'json', delay: 250, data: function(p) { return { term: p.term, action: 'woocommerce_json_search_products_and_variations', security: wc_nonce }; }, processResults: function(d) { var t = []; if (d) { $.each(d, function(id, text) { t.push({ id: id, text: text }); }); } return { results: t }; }, cache: true }
-            });
-
-            $container.find('.wc-category-search:not(.select2-hidden-accessible)').select2({
-                allowClear: true, minimumInputLength: 2,
-                ajax: { url: ajaxurl, dataType: 'json', delay: 250, data: function(p) { return { term: p.term, action: 'woocommerce_json_search_categories', security: cat_nonce }; }, processResults: function(d) { var t = []; if (d) { $.each(d, function(id, text) { t.push({ id: id, text: text }); }); } return { results: t }; }, cache: true }
-            });
-
-            $container.find('.wc-tag-search:not(.select2-hidden-accessible)').select2({
-                allowClear: true, minimumInputLength: 2,
-                ajax: { url: ajaxurl, dataType: 'json', delay: 250, data: function(p) { return { term: p.term, action: 'woocommerce_json_search_tags', security: tag_nonce }; }, processResults: function(d) { var t = []; if (d) { $.each(d, function(id, text) { t.push({ id: id, text: text }); }); } return { results: t }; }, cache: true }
-            });
-        } catch(err) {
-            console.warn("MealCrafter: Select2 search failed, but UI is protected.");
-        }
-    };
-
-    // Initialize the boxes currently on the page
-    window.initMcSelect2($('#mc-bulk-costs-container'));
-
-    // The Add Button logic
+    // Add New Button
     $('#mc-add-new-bulk-cost').on('click', function(e) {
         e.preventDefault();
         $('#mc-no-bulk-costs-msg').hide();
-        var uniqueId = 'bulk_' + Date.now();
-        var template = $('#mc-bulk-cost-template').html().replace(/{id}/g, uniqueId);
+        let uniqueId = 'bulk_' + Date.now();
+        let template = $('#mc-bulk-cost-template').html().replace(/{id}/g, uniqueId);
         
         $('#mc-bulk-costs-container').append(template);
-        var $newCard = $('#mc-bulk-costs-container .mc-existing-rule').last();
+        let $newCard = $('#mc-bulk-costs-container .mc-existing-rule').last();
         
-        $newCard.find('.mc-rule-card-body').show();
+        initSelect2($newCard);
+        
+        $newCard.find('.mc-rule-card-body').slideDown();
         $newCard.find('.mc-toggle-indicator').text('▲');
+    });
 
-        // Safely init the search bars on the new card
-        window.initMcSelect2($newCard);
+    // Delete Button
+    $(document).on('click', '.mc-remove-bulk-cost', function(e) {
+        e.preventDefault();
+        if(confirm('Delete this rule? Click Save Bulk Rules below to permanently remove it.')) {
+            let $card = $(this).closest('.mc-rule-card');
+            $card.find('input, select, textarea').remove(); 
+            $card.slideUp(250, function(){ $(this).remove(); });
+        }
     });
 
 });
