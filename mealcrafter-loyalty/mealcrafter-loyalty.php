@@ -81,7 +81,8 @@ $tab_files = [
     'class-mc-tab-customers.php',
     'class-mc-tab-options.php',
     'class-mc-tab-redeeming.php',
-    'class-mc-tab-product-level.php'
+    'class-mc-tab-product-level.php',
+    'class-mc-tab-catalog.php'
 ];
 foreach ( $tab_files as $file ) {
     if ( file_exists( MC_LOYALTY_PATH . 'includes/admin-tabs/' . $file ) ) { require_once MC_LOYALTY_PATH . 'includes/admin-tabs/' . $file; }
