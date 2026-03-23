@@ -114,6 +114,9 @@ class MC_Points_Admin {
 
         // Auto-Giveaways Tab Group
         register_setting('mc_prod_giveaway_group', 'mc_pts_auto_giveaways');
+        
+        // Reward Catalog Tab Group
+        register_setting('mc_prod_catalog_group', 'mc_pts_catalog_settings');
     }
 
 
