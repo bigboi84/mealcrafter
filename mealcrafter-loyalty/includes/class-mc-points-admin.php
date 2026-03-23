@@ -10,7 +10,6 @@ class MC_Points_Admin {
         add_action( 'admin_menu', [$this, 'register_suite_menu'], 20 );
         add_action( 'admin_init', [$this, 'register_global_settings'] ); 
         
-        // Force load WooCommerce's Select2 (selectWoo) scripts & styles globally for our plugin
         add_action( 'admin_enqueue_scripts', function($hook) { 
             wp_enqueue_media(); 
             if (strpos($hook, 'mc-loyalty-settings') !== false) {
@@ -141,45 +140,36 @@ class MC_Points_Admin {
 
         ?>
         <style>
-            /* ========================================================= */
-            /* MEALCRAFTER SELECT2 OVERRIDE (Clean, Pill-Shaped, Secure) */
-            /* ========================================================= */
-            
-            /* Secure the wrapper */
+            /* SELECT2 OVERRIDE (Clean, Pill-Shaped, Secure) */
             .select2-container { width: 100% !important; z-index: 99999 !important; }
             .mc-rule-card, .mc-existing-rule { overflow: visible !important; }
 
-            /* The Main Input Box */
             .select2-container--default .select2-selection--multiple {
                 background-color: #ffffff !important;
-                border: 1px solid #007cba !important; /* Primary Brand Blue */
+                border: 1px solid #007cba !important; 
                 border-radius: 6px !important;
                 min-height: 42px !important;
                 padding: 4px 8px !important;
                 box-shadow: inset 0 1px 2px rgba(0,0,0,0.05) !important;
-                transition: all 0.2s ease;
             }
             .select2-container--default.select2-container--focus .select2-selection--multiple {
                 border-color: #007cba !important;
                 box-shadow: 0 0 0 1px #007cba !important;
             }
             
-            /* The Selected Tags (Pill Style) */
             .select2-container--default .select2-selection--multiple .select2-selection__choice {
                 background-color: #f1f1f1 !important;
                 border: 1px solid #e2e2e2 !important;
-                border-radius: 20px !important; /* Makes it a pill */
-                padding: 4px 12px 4px 26px !important; /* Space for the X */
+                border-radius: 20px !important; 
+                padding: 4px 12px 4px 26px !important; 
                 margin-top: 4px !important;
                 margin-right: 6px !important;
                 color: #333 !important;
                 font-size: 13px !important;
                 font-weight: 500 !important;
                 position: relative;
-                box-shadow: 0 1px 2px rgba(0,0,0,0.02) !important;
             }
             
-            /* The 'X' Remove Button */
             .select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
                 color: #888 !important;
                 position: absolute !important;
@@ -196,7 +186,6 @@ class MC_Points_Admin {
                 background: transparent !important;
             }
             
-            /* The Floating Dropdown Menu (Fixes Overlap Glitch) */
             .select2-dropdown {
                 background-color: #ffffff !important;
                 border: 1px solid #007cba !important;
@@ -206,7 +195,6 @@ class MC_Points_Admin {
                 z-index: 999999 !important;
             }
             
-            /* The Search Bar inside Dropdown */
             .select2-search--dropdown { padding: 10px !important; background: #fff !important; }
             .select2-search__field { 
                 border: 1px solid #ccc !important; 
@@ -216,7 +204,6 @@ class MC_Points_Admin {
                 color: #111 !important;
             }
             
-            /* The Dropdown Options */
             .select2-results { background-color: #ffffff !important; }
             .select2-results__options { background-color: #ffffff !important; }
             .select2-results__option {
@@ -232,12 +219,10 @@ class MC_Points_Admin {
                 color: #999 !important;
             }
             .select2-results__option--highlighted[aria-selected] {
-                background-color: #007cba !important; /* Highlight Blue */
+                background-color: #007cba !important; 
                 color: #ffffff !important;
             }
 
-
-            /* Rest of your Standard UI Styles */
             .mc-layout-wrapper { display: flex; gap: 25px; margin-top: 20px; align-items: flex-start; }
             .mc-sidebar-nav { width: 240px; flex-shrink: 0; display: flex; flex-direction: column; gap: 8px; }
             .mc-subtab-link { text-decoration: none; padding: 12px 18px; border-radius: 8px; font-size: 14px; font-weight: 600; color: #444; background: #fff; border: 1px solid #ddd; transition: all 0.2s ease; box-shadow: 0 1px 2px rgba(0,0,0,0.02); }
@@ -315,8 +300,7 @@ class MC_Points_Admin {
         <script>
         jQuery(document).ready(function($) {
             if ($.fn.select2) {
-                $('.mc-main-content select[multiple]').each(function() {
-                    // Only apply to standard selects (ignore the ones that already use AJAX)
+                $('.wrap select[multiple]').each(function() {
                     if (!$(this).hasClass('mc-ajax-category-search') && 
                         !$(this).hasClass('mc-ajax-product-search') && 
                         !$(this).hasClass('mc-ajax-tag-search')) {
