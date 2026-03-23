@@ -76,23 +76,18 @@ class MC_Points_Account {
 
     public function render_catalog( $atts = [] ) {
         $settings = get_option('mc_pts_catalog_settings', []);
+        $custom_style = get_option('mc_customization_settings', []); // NEW: Reads Customization settings
+        
         if (($settings['enabled'] ?? 'yes') !== 'yes') return '';
 
-        // Dashboard Settings
-        $default_tab = $settings['default_tab'] ?? 'catalog';
-        $dash_title_size = $settings['dash_title_size'] ?? '28';
-        $dash_val_size = $settings['dash_val_size'] ?? '36';
-        $dash_card_bg = $settings['dash_card_bg'] ?? '#f9f9f9';
-
+        // Core Layout
         $title = $settings['title'] ?? 'Unlock Secret Rewards';
         $description = $settings['description'] ?? '';
         $terms_url = $settings['terms_url'] ?? '';
-
         $layout = $settings['layout'] ?? 'grid';
         $hide_image = $settings['hide_image'] ?? 'no';
         $img_height = $settings['img_height'] ?? '180';
         $hover_card = $settings['hover_card'] ?? 'yes';
-        
         $btn_ready = $settings['btn_ready'] ?? 'Redeem for {points} Pts';
         $btn_short = $settings['btn_short'] ?? 'Need {points} more Pts';
         $primary_color = $settings['primary_color'] ?? '#e74c3c';
@@ -100,15 +95,18 @@ class MC_Points_Account {
         $included_cats = $settings['included_categories'] ?? [];
         $excluded_prods = $settings['excluded_products'] ?? [];
 
-        $prog_style = $settings['prog_style'] ?? 'linear';
-        $prog_overlay = $settings['prog_overlay'] ?? 'no';
-        $prog_color_active = $settings['prog_color_active'] ?? '#f39c12';
-        $prog_color_ready = $settings['prog_color_ready'] ?? '#2ecc71';
-        $prog_bg_color = $settings['prog_bg_color'] ?? '#f0f0f0';
+        // Dashboard & Progress UI (Now pulled from Customization)
+        $default_tab = $custom_style['default_tab'] ?? 'catalog';
+        $dash_title_size = $custom_style['dash_title_size'] ?? '28';
+        $dash_val_size = $custom_style['dash_val_size'] ?? '36';
+        $dash_card_bg = $custom_style['dash_card_bg'] ?? '#f9f9f9';
+        $prog_style = $custom_style['prog_style'] ?? 'linear';
+        $prog_overlay = $custom_style['prog_overlay'] ?? 'no';
+        $prog_color_active = $custom_style['prog_color_active'] ?? '#f39c12';
+        $prog_color_ready = $custom_style['prog_color_ready'] ?? '#2ecc71';
+        $prog_bg_color = $custom_style['prog_bg_color'] ?? '#f0f0f0';
 
         $user_id = get_current_user_id();
-        
-        // STRICT DATABASE ENGINE: Match backend perfectly
         $pts_n = (int)get_user_meta($user_id, '_mc_user_points', true);
         $pts_o = (int)get_user_meta($user_id, 'mc_points', true);
         $balance = max($pts_n, $pts_o);
@@ -119,7 +117,6 @@ class MC_Points_Account {
         $history = get_user_meta($user_id, '_mc_points_history', true);
         if (!is_array($history)) $history = [];
 
-        // Tab Logic 
         $is_hist_active = ($default_tab === 'history' && is_user_logged_in());
         $is_cat_active = ($default_tab === 'catalog' || !is_user_logged_in());
 
@@ -147,14 +144,12 @@ class MC_Points_Account {
             .mc-dash-header { margin-bottom:30px; }
             .mc-dash-header h2 { margin:0 0 15px 0; font-weight:800; font-size:<?php echo esc_attr($dash_title_size); ?>px; color:#222; }
             
-            /* Top Cards */
             .mc-top-cards { display:flex; gap:15px; margin-bottom:30px; flex-wrap:wrap; }
             .mc-tcard { flex:1; min-width:200px; background:<?php echo esc_attr($dash_card_bg); ?>; padding:25px; border-radius:8px; text-align:center; box-shadow:0 2px 10px rgba(0,0,0,0.03); border:1px solid rgba(0,0,0,0.05); }
             .mc-tcard-title { font-size:12px; color:#888; text-transform:uppercase; font-weight:700; letter-spacing:1px; margin-bottom:10px; display:block; }
             .mc-tcard-val { font-size:<?php echo esc_attr($dash_val_size); ?>px; font-weight:900; color:#111; line-height:1; }
             .mc-tcard-sub { font-size:11px; color:#999; margin-top:8px; display:block; }
             
-            /* Tabs */
             .mc-tabs-nav { display:flex; gap:30px; border-bottom:2px solid #eee; margin-bottom:30px; }
             .mc-tab-btn { background:transparent; border:none; padding:10px 0; font-size:15px; font-weight:700; color:#888; cursor:pointer; border-bottom:3px solid transparent; margin-bottom:-2px; transition:0.2s; }
             .mc-tab-btn.active { color:#222; border-color:<?php echo esc_attr($primary_color); ?>; }
@@ -162,14 +157,12 @@ class MC_Points_Account {
             .mc-tab-content { display:none; animation:fadeIn 0.3s ease; }
             .mc-tab-content.active { display:block; }
             
-            /* History Table */
             .mc-f-hist-table { width:100%; border-collapse:collapse; font-size:14px; }
             .mc-f-hist-table th { padding:12px 10px; border-bottom:2px solid #eee; text-align:left; color:#111; font-weight:800; }
             .mc-f-hist-table td { padding:15px 10px; border-bottom:1px solid #eee; color:#555; }
             .mc-f-pos { color:#2ecc71; font-weight:800; font-size:16px; }
             .mc-f-neg { color:#e74c3c; font-weight:800; font-size:16px; }
             
-            /* Catalog Overrides */
             .mc-catalog-item { transition: transform 0.3s ease, box-shadow 0.3s ease; }
             <?php if ($hover_card === 'yes'): ?>.mc-catalog-item:hover { transform: translateY(-4px); box-shadow: 0 10px 25px rgba(0,0,0,0.08) !important; }<?php endif; ?>
             .mc-reward-btn { transition: all 0.2s ease; }
@@ -308,7 +301,7 @@ class MC_Points_Account {
         global $product;
         $point_cost = self::get_product_point_cost($product);
         if ( $point_cost !== false && $point_cost > 0 ) {
-            $settings = get_option('mc_pts_catalog_settings', []);
+            $settings = get_option('mc_customization_settings', []); // NEW: Reads Customization settings
             $bg = $settings['badge_bg'] ?? '#fef8ee';
             $border = $settings['badge_border'] ?? '#f6c064';
             $color = $settings['badge_text_color'] ?? '#d35400';
