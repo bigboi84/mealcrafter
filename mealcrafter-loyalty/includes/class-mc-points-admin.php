@@ -9,13 +9,21 @@ class MC_Points_Admin {
     public function __construct() {
         add_action( 'admin_menu', [$this, 'register_suite_menu'], 20 );
         add_action( 'admin_init', [$this, 'register_global_settings'] ); 
-        add_action( 'admin_enqueue_scripts', function() { wp_enqueue_media(); } );
+        
+        // Force load WooCommerce's Select2 (selectWoo) scripts & styles globally for our plugin
+        add_action( 'admin_enqueue_scripts', function($hook) { 
+            wp_enqueue_media(); 
+            if (strpos($hook, 'mc-loyalty-settings') !== false) {
+                wp_enqueue_style('select2');
+                wp_enqueue_script('selectWoo');
+            }
+        });
+        
         add_action( 'woocommerce_product_options_general_product_data', [$this, 'add_product_point_fields'] );
         add_action( 'woocommerce_process_product_meta', [$this, 'save_product_point_fields'] );
     }
 
     public function register_global_settings() {
-        // Main Points Options Group
         register_setting('mc_loyalty_options_group', 'mc_pts_assign_type');
         register_setting('mc_loyalty_options_group', 'mc_pts_assign_roles');
         register_setting('mc_loyalty_options_group', 'mc_pts_specific_roles'); 
@@ -39,7 +47,6 @@ class MC_Points_Admin {
         register_setting('mc_loyalty_options_group', 'mc_pts_expiration_type'); 
         register_setting('mc_loyalty_options_group', 'mc_pts_rules'); 
         
-        // EXTRA POINTS SETTINGS
         register_setting('mc_loyalty_options_group', 'mc_pts_extra_registration');
         register_setting('mc_loyalty_options_group', 'mc_pts_extra_registration_pts');
         register_setting('mc_loyalty_options_group', 'mc_pts_extra_login');
@@ -62,13 +69,11 @@ class MC_Points_Admin {
         register_setting('mc_loyalty_options_group', 'mc_pts_extra_cart_pts');
         register_setting('mc_loyalty_options_group', 'mc_pts_extra_cart_threshold');
         
-        // LEVELS, BANNERS, RANKING
         register_setting('mc_loyalty_options_group', 'mc_pts_levels');
         register_setting('mc_loyalty_options_group', 'mc_pts_banners');
         register_setting('mc_loyalty_options_group', 'mc_pts_ranking_enable');
         register_setting('mc_loyalty_options_group', 'mc_pts_ranking_my_account');
         
-        // REDEEMING OPTIONS (Global)
         register_setting('mc_loyalty_options_group', 'mc_pts_allow_redeem');
         register_setting('mc_loyalty_options_group', 'mc_pts_redeem_user_type');
         register_setting('mc_loyalty_options_group', 'mc_pts_redeem_specific_roles');
@@ -95,11 +100,6 @@ class MC_Points_Admin {
         register_setting('mc_loyalty_options_group', 'mc_pts_coupon_expiry_days');
         register_setting('mc_loyalty_options_group', 'mc_pts_redeem_rules');
 
-        // ==============================================
-        // ISOLATED PRODUCT-LEVEL GROUPS
-        // ==============================================
-        
-        // General Tab Group
         register_setting('mc_prod_general_group', 'mc_pts_prod_enable');
         register_setting('mc_prod_general_group', 'mc_pts_prod_max_per_cart');
         register_setting('mc_prod_general_group', 'mc_pts_prod_min_cart_total');
@@ -109,16 +109,10 @@ class MC_Points_Admin {
         register_setting('mc_prod_general_group', 'mc_pts_prod_base_price_only');
         register_setting('mc_prod_general_group', 'mc_pts_prod_tax_override');
 
-        // Bulk Costs Tab Group
         register_setting('mc_prod_bulk_group', 'mc_pts_bulk_costs');
-
-        // Auto-Giveaways Tab Group
         register_setting('mc_prod_giveaway_group', 'mc_pts_auto_giveaways');
-        
-        // Reward Catalog Tab Group
         register_setting('mc_prod_catalog_group', 'mc_pts_catalog_settings');
     }
-
 
     public function register_suite_menu() {
         if ( empty ( $GLOBALS['admin_page_hooks']['mc-hub'] ) ) {
@@ -147,6 +141,103 @@ class MC_Points_Admin {
 
         ?>
         <style>
+            /* ========================================================= */
+            /* MEALCRAFTER SELECT2 OVERRIDE (Clean, Pill-Shaped, Secure) */
+            /* ========================================================= */
+            
+            /* Secure the wrapper */
+            .select2-container { width: 100% !important; z-index: 99999 !important; }
+            .mc-rule-card, .mc-existing-rule { overflow: visible !important; }
+
+            /* The Main Input Box */
+            .select2-container--default .select2-selection--multiple {
+                background-color: #ffffff !important;
+                border: 1px solid #007cba !important; /* Primary Brand Blue */
+                border-radius: 6px !important;
+                min-height: 42px !important;
+                padding: 4px 8px !important;
+                box-shadow: inset 0 1px 2px rgba(0,0,0,0.05) !important;
+                transition: all 0.2s ease;
+            }
+            .select2-container--default.select2-container--focus .select2-selection--multiple {
+                border-color: #007cba !important;
+                box-shadow: 0 0 0 1px #007cba !important;
+            }
+            
+            /* The Selected Tags (Pill Style) */
+            .select2-container--default .select2-selection--multiple .select2-selection__choice {
+                background-color: #f1f1f1 !important;
+                border: 1px solid #e2e2e2 !important;
+                border-radius: 20px !important; /* Makes it a pill */
+                padding: 4px 12px 4px 26px !important; /* Space for the X */
+                margin-top: 4px !important;
+                margin-right: 6px !important;
+                color: #333 !important;
+                font-size: 13px !important;
+                font-weight: 500 !important;
+                position: relative;
+                box-shadow: 0 1px 2px rgba(0,0,0,0.02) !important;
+            }
+            
+            /* The 'X' Remove Button */
+            .select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
+                color: #888 !important;
+                position: absolute !important;
+                left: 8px !important;
+                top: 50% !important;
+                transform: translateY(-50%) !important;
+                border: none !important;
+                font-weight: bold !important;
+                font-size: 16px !important;
+                background: transparent !important;
+            }
+            .select2-container--default .select2-selection--multiple .select2-selection__choice__remove:hover {
+                color: #d63638 !important;
+                background: transparent !important;
+            }
+            
+            /* The Floating Dropdown Menu (Fixes Overlap Glitch) */
+            .select2-dropdown {
+                background-color: #ffffff !important;
+                border: 1px solid #007cba !important;
+                border-top: none !important;
+                border-radius: 0 0 6px 6px !important;
+                box-shadow: 0 8px 20px rgba(0,0,0,0.15) !important;
+                z-index: 999999 !important;
+            }
+            
+            /* The Search Bar inside Dropdown */
+            .select2-search--dropdown { padding: 10px !important; background: #fff !important; }
+            .select2-search__field { 
+                border: 1px solid #ccc !important; 
+                border-radius: 4px !important; 
+                padding: 8px !important; 
+                background: #fff !important;
+                color: #111 !important;
+            }
+            
+            /* The Dropdown Options */
+            .select2-results { background-color: #ffffff !important; }
+            .select2-results__options { background-color: #ffffff !important; }
+            .select2-results__option {
+                padding: 10px 15px !important;
+                font-size: 13px !important;
+                color: #333 !important;
+                background-color: #fff !important;
+                border-bottom: 1px solid #f9f9f9 !important;
+                margin: 0 !important;
+            }
+            .select2-results__option[aria-selected=true] {
+                background-color: #f0f0f0 !important;
+                color: #999 !important;
+            }
+            .select2-results__option--highlighted[aria-selected] {
+                background-color: #007cba !important; /* Highlight Blue */
+                color: #ffffff !important;
+            }
+
+
+            /* Rest of your Standard UI Styles */
             .mc-layout-wrapper { display: flex; gap: 25px; margin-top: 20px; align-items: flex-start; }
             .mc-sidebar-nav { width: 240px; flex-shrink: 0; display: flex; flex-direction: column; gap: 8px; }
             .mc-subtab-link { text-decoration: none; padding: 12px 18px; border-radius: 8px; font-size: 14px; font-weight: 600; color: #444; background: #fff; border: 1px solid #ddd; transition: all 0.2s ease; box-shadow: 0 1px 2px rgba(0,0,0,0.02); }
@@ -184,7 +275,6 @@ class MC_Points_Admin {
             .mc-rule-card-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 15px; margin-bottom: 20px; }
             .mc-remove-rule { color: #d63638; cursor: pointer; font-weight: 600; text-decoration: none; font-size: 13px; }
             .mc-remove-rule:hover { text-decoration: underline; }
-            .select2-container--default .select2-selection--multiple { border-radius: 4px !important; border: 1px solid #8c8f94 !important; min-height: 32px; }
         </style>
 
         <div class="wrap">
@@ -199,7 +289,6 @@ class MC_Points_Admin {
             </h2>
 
             <?php
-            // ONE clean switch statement with the new product_level routing
             switch ($current_tab) {
                 case 'customers':
                     if (class_exists('MC_Tab_Customers')) { $tab_module = new MC_Tab_Customers(); $tab_module->render(); }
@@ -213,12 +302,34 @@ class MC_Points_Admin {
                 case 'product_level':
                     if (class_exists('MC_Tab_Product_Level')) { $tab_module = new MC_Tab_Product_Level(); $tab_module->render(); }
                     break;
+                case 'catalog':
+                    if (class_exists('MC_Tab_Catalog')) { $tab_module = new MC_Tab_Catalog(); $tab_module->render(); }
+                    break;
                 default:
                     echo '<div class="mc-main-content" style="margin-top:20px;"><h2 style="margin-top:0; font-weight:800; border-bottom:2px solid #eee; padding-bottom:15px; margin-bottom:20px;">' . esc_html($tabs[$current_tab]) . '</h2><p>Module coming soon.</p></div>';
                     break;
             }
             ?>
         </div>
+
+        <script>
+        jQuery(document).ready(function($) {
+            if ($.fn.select2) {
+                $('.mc-main-content select[multiple]').each(function() {
+                    // Only apply to standard selects (ignore the ones that already use AJAX)
+                    if (!$(this).hasClass('mc-ajax-category-search') && 
+                        !$(this).hasClass('mc-ajax-product-search') && 
+                        !$(this).hasClass('mc-ajax-tag-search')) {
+                        
+                        $(this).select2({
+                            width: '100%',
+                            placeholder: 'Select options...'
+                        });
+                    }
+                });
+            }
+        });
+        </script>
         <?php
     }
 
