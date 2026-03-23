@@ -29,13 +29,19 @@ class MC_Tab_Catalog {
         $included_cats = $catalog_settings['included_categories'] ?? [];
         $excluded_prods = $catalog_settings['excluded_products'] ?? []; 
 
+        // Dashboard Typography & Layout (NEW)
+        $default_tab = $catalog_settings['default_tab'] ?? 'catalog';
+        $dash_title_size = $catalog_settings['dash_title_size'] ?? '28';
+        $dash_val_size = $catalog_settings['dash_val_size'] ?? '36';
+        $dash_card_bg = $catalog_settings['dash_card_bg'] ?? '#f9f9f9';
+
         // Badge Designer Settings
         $badge_bg = $catalog_settings['badge_bg'] ?? '#fef8ee';
         $badge_border = $catalog_settings['badge_border'] ?? '#f6c064';
         $badge_text = $catalog_settings['badge_text_color'] ?? '#d35400';
-        $badge_icon_type = $catalog_settings['badge_icon_type'] ?? 'custom'; // NEW: Icon type
-        $badge_font_icon = $catalog_settings['badge_font_icon'] ?? 'dashicons-awards'; // NEW: Font icon
-        $badge_icon_color = $catalog_settings['badge_icon_color'] ?? '#d35400'; // NEW: Font icon color
+        $badge_icon_type = $catalog_settings['badge_icon_type'] ?? 'custom'; 
+        $badge_font_icon = $catalog_settings['badge_font_icon'] ?? 'dashicons-awards'; 
+        $badge_icon_color = $catalog_settings['badge_icon_color'] ?? '#d35400'; 
         $badge_icon = $catalog_settings['badge_icon'] ?? '🎁';
         $badge_format = $catalog_settings['badge_format'] ?? '{icon} Redeem for {points} Pts';
 
@@ -66,6 +72,38 @@ class MC_Tab_Catalog {
 
             <form method="post" action="options.php">
                 <?php settings_fields( 'mc_prod_catalog_group' ); ?>
+
+                <div class="mc-rule-card" style="padding:25px; margin-bottom:20px; border-left:4px solid #8e44ad;">
+                    <h3 style="margin-top:0; border-bottom:1px solid #eee; padding-bottom:10px; margin-bottom:20px;">Dashboard UI & Settings</h3>
+                    <p style="margin-top:-10px; margin-bottom:20px; color:#666; font-size:13px;">Control the layout and typography of the main dashboard wrapper (Top Cards and Tabs).</p>
+
+                    <div class="mc-form-row" style="display:flex; gap:20px; margin-bottom:20px;">
+                        <div style="flex:1;">
+                            <span class="mc-form-label">Default Active Tab</span>
+                            <span class="mc-form-desc">Which tab is shown when the page first loads?</span>
+                            <select name="mc_pts_catalog_settings[default_tab]" style="width:100%;">
+                                <option value="catalog" <?php selected($default_tab, 'catalog'); ?>>Reward Catalog</option>
+                                <option value="history" <?php selected($default_tab, 'history'); ?>>Points History</option>
+                            </select>
+                        </div>
+                        <div style="flex:1;">
+                            <span class="mc-form-label">Top Metrics Card Background</span>
+                            <span class="mc-form-desc">Color of the boxes holding Lifetime Points/Rank.</span>
+                            <input type="color" name="mc_pts_catalog_settings[dash_card_bg]" value="<?php echo esc_attr($dash_card_bg); ?>" class="mc-color-picker-small">
+                        </div>
+                    </div>
+                    
+                    <div class="mc-form-row" style="display:flex; gap:20px;">
+                        <div style="flex:1;">
+                            <span class="mc-form-label">Dashboard Main Title Size (px)</span>
+                            <input type="number" name="mc_pts_catalog_settings[dash_title_size]" value="<?php echo esc_attr($dash_title_size); ?>" style="width:100%;">
+                        </div>
+                        <div style="flex:1;">
+                            <span class="mc-form-label">Metrics Value Text Size (px)</span>
+                            <input type="number" name="mc_pts_catalog_settings[dash_val_size]" value="<?php echo esc_attr($dash_val_size); ?>" style="width:100%;">
+                        </div>
+                    </div>
+                </div>
 
                 <div class="mc-rule-card" style="padding:25px; margin-bottom:20px;">
                     <h3 style="margin-top:0; border-bottom:1px solid #eee; padding-bottom:10px; margin-bottom:20px;">Catalog Header & Content</h3>
@@ -251,12 +289,10 @@ class MC_Tab_Catalog {
                                 <option value="font_icon" <?php selected($badge_icon_type, 'font_icon'); ?>>Built-in Font Icon</option>
                             </select>
                         </div>
-
                         <div style="flex:1;" class="mc-icon-mode-custom">
                             <span class="mc-form-label">Emoji or Image URL</span>
                             <input type="text" name="mc_pts_catalog_settings[badge_icon]" value="<?php echo esc_attr($badge_icon); ?>" style="width:100%;">
                         </div>
-
                         <div style="flex:1; display:none;" class="mc-icon-mode-font">
                             <span class="mc-form-label">Select Font Icon</span>
                             <select name="mc_pts_catalog_settings[badge_font_icon]" style="width:100%;">
@@ -289,20 +325,15 @@ class MC_Tab_Catalog {
 
             <script>
             jQuery(document).ready(function($) {
-                // Icon Type Switcher Logic
                 function toggleIconMode() {
                     if ($('#mc-badge-icon-type').val() === 'font_icon') {
-                        $('.mc-icon-mode-custom').hide();
-                        $('.mc-icon-mode-font').show();
+                        $('.mc-icon-mode-custom').hide(); $('.mc-icon-mode-font').show();
                     } else {
-                        $('.mc-icon-mode-font').hide();
-                        $('.mc-icon-mode-custom').show();
+                        $('.mc-icon-mode-font').hide(); $('.mc-icon-mode-custom').show();
                     }
                 }
-                $('#mc-badge-icon-type').on('change', toggleIconMode);
-                toggleIconMode(); // Run on load
+                $('#mc-badge-icon-type').on('change', toggleIconMode); toggleIconMode();
 
-                // Select2 Initialization
                 try {
                     if($.fn.select2) {
                         let wc_nonce = typeof wc_enhanced_select_params !== 'undefined' ? wc_enhanced_select_params.search_products_nonce : '';
@@ -312,7 +343,6 @@ class MC_Tab_Catalog {
                             allowClear: true, minimumInputLength: 2,
                             ajax: { url: ajaxurl, dataType: 'json', delay: 250, data: function(p) { return { term: p.term, action: 'woocommerce_json_search_categories', security: cat_nonce }; }, processResults: function(d) { var t = []; if (d) { $.each(d, function(id, text) { t.push({ id: id, text: text }); }); } return { results: t }; }, cache: true }
                         });
-
                         $('.mc-ajax-product-search:not(.select2-hidden-accessible)').select2({
                             allowClear: true, minimumInputLength: 3,
                             ajax: { url: ajaxurl, dataType: 'json', delay: 250, data: function(p) { return { term: p.term, action: 'woocommerce_json_search_products_and_variations', security: wc_nonce }; }, processResults: function(d) { var t = []; if (d) { $.each(d, function(id, text) { t.push({ id: id, text: text }); }); } return { results: t }; }, cache: true }
