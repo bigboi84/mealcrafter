@@ -290,6 +290,9 @@ class MC_Points_Admin {
                 case 'catalog':
                     if (class_exists('MC_Tab_Catalog')) { $tab_module = new MC_Tab_Catalog(); $tab_module->render(); }
                     break;
+                case 'customization': // <--- THIS IS THE FIX right here!
+                    if (class_exists('MC_Tab_Customization')) { $tab_module = new MC_Tab_Customization(); $tab_module->render(); }
+                    break;
                 default:
                     echo '<div class="mc-main-content" style="margin-top:20px;"><h2 style="margin-top:0; font-weight:800; border-bottom:2px solid #eee; padding-bottom:15px; margin-bottom:20px;">' . esc_html($tabs[$current_tab]) . '</h2><p>Module coming soon.</p></div>';
                     break;
