@@ -45,6 +45,17 @@
                 </div>
             </div>
 
+            <div class="mc-toggle-row" style="margin-top:15px; background:#fffcf5; padding:15px; border-radius:8px; border:1px solid #f6e0b5;">
+                <div class="mc-form-info" style="margin:0;">
+                    <span class="mc-form-label">Disable alongside Coupons</span>
+                    <span class="mc-form-desc">If enabled, customers cannot use points to redeem free items if they have applied a discount coupon to their cart.</span>
+                </div>
+                <label class="mc-toggle-switch">
+                    <input type="checkbox" name="mc_pts_prod_disable_with_coupons" value="yes" <?php checked(get_option('mc_pts_prod_disable_with_coupons', 'no'), 'yes'); ?>>
+                    <span class="mc-slider"></span>
+                </label>
+            </div>
+
             <hr style="margin:25px 0; border:0; border-bottom:1px solid #eee;">
 
             <div class="mc-toggle-row" style="border-bottom:none;">
@@ -61,7 +72,7 @@
                 </label>
             </div>
 
-            <div class="mc-toggle-row">
+            <div class="mc-toggle-row" style="border-bottom:none;">
                 <div class="mc-form-info" style="margin:0;">
                     <span class="mc-form-label">Customer Must Pay Taxes</span>
                     <span class="mc-form-desc">If enabled, the 100% discount applies to the subtotal, but standard taxes are still calculated and charged at checkout.</span>
@@ -70,6 +81,19 @@
                     <input type="checkbox" name="mc_pts_prod_tax_override" value="yes" <?php checked(get_option('mc_pts_prod_tax_override', 'yes'), 'yes'); ?>>
                     <span class="mc-slider"></span>
                 </label>
+            </div>
+
+            <div class="mc-form-row" style="margin-top:10px; background:#f9f9f9; padding:15px; border-radius:8px; border:1px solid #eee;">
+                <div class="mc-form-info">
+                    <span class="mc-form-label">Store Tax Configuration</span>
+                    <span class="mc-form-desc">Tell the plugin how your website handles taxes to ensure reward math is 100% accurate when "Customer Must Pay Taxes" is ON.</span>
+                </div>
+                <div class="mc-form-control">
+                    <select name="mc_pts_prod_tax_mode" style="width:100%; max-width:400px;">
+                        <option value="inclusive" <?php selected(get_option('mc_pts_prod_tax_mode', 'inclusive'), 'inclusive'); ?>>Prices INCLUDE tax (Standard)</option>
+                        <option value="exclusive" <?php selected(get_option('mc_pts_prod_tax_mode', 'inclusive'), 'exclusive'); ?>>Prices EXCLUDE tax (Added at checkout)</option>
+                    </select>
+                </div>
             </div>
 
         </div>
@@ -129,12 +153,8 @@
 
 <script>
 jQuery(document).ready(function($) {
-    // Initialize Select2
-    if($.fn.select2) {
-        $('.mc-select2').select2({ allowClear: true });
-    }
+    if($.fn.select2) { $('.mc-select2').select2({ allowClear: true }); }
 
-    // Toggle Master Container
     $(document).on('change', '.mc-reveal-toggle', function() {
         let target = $(this).data('target');
         if($(this).is(':checked')) { 
@@ -147,7 +167,6 @@ jQuery(document).ready(function($) {
         }
     });
 
-    // Toggle Target Users (All vs Roles vs Levels)
     $(document).on('change', '.mc-user-target-toggle', function() {
         $('.mc-user-wrap').hide();
         let val = $(this).val();
