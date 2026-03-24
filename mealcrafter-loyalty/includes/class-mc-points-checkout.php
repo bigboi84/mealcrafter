@@ -22,6 +22,7 @@ class MC_Points_Checkout {
         add_action( $box_pos, [$this, 'render_redemption_box'] );
         add_action( 'woocommerce_before_cart', [$this, 'render_redemption_box'] );
 
+        // AJAX Handlers
         add_action( 'wp_ajax_mc_apply_checkout_points', [$this, 'ajax_apply_points'] );
         add_action( 'wp_ajax_mc_remove_checkout_points', [$this, 'ajax_remove_points'] );
         add_action( 'wp_ajax_mc_apply_product_redemption_cart', [$this, 'ajax_apply_product_cart'] );
@@ -122,7 +123,7 @@ class MC_Points_Checkout {
     // -----------------------------------------------------------------------------------
     public function add_giveaway_badge_to_cart_name( $item_name, $cart_item, $cart_item_key ) {
         if ( isset( $cart_item['_mc_is_giveaway'] ) && $cart_item['_mc_is_giveaway'] === true ) {
-            $badge = '<span style="background:#e74c3c; color:#fff; font-size:10px; padding:3px 8px; border-radius:12px; margin-left:8px; vertical-align:middle; font-weight:bold; letter-spacing:0.5px;">FREE GIFT</span>';
+            $badge = '<span style="background:#e74c3c; color:#fff; font-size:10px; padding:3px 8px; border-radius:12px; margin-left:8px; vertical-align:middle; font-weight:bold; letter-spacing:0.5px; box-shadow:0 2px 4px rgba(231,76,60,0.3);">FREE GIFT</span>';
             $item_name .= $badge;
         }
 
@@ -137,12 +138,32 @@ class MC_Points_Checkout {
                 $balance = $this->get_accurate_user_points($user_id);
                 $redeemed_key = WC()->session->get('mc_redeemed_cart_item');
 
-                if ($redeemed_key === $cart_item_key) {
-                    $item_name .= '<div style="margin-top:5px; font-size:12px; color:#2ecc71; font-weight:bold;">✅ Redeemed (-'.number_format($cost).' Points) <a href="#" class="mc-remove-product-redemption mc-remove-hover" style="color:#e74c3c; text-decoration:underline; margin-left:10px; cursor:pointer;">Remove</a></div>';
-                } elseif ($balance >= $cost) {
-                    $item_name .= '<div style="margin-top:5px;"><a href="#" class="mc-trigger-cart-redemption" data-key="'.esc_attr($cart_item_key).'" data-product="'.esc_attr($product->get_name()).'" data-cost="'.esc_attr($cost).'" style="font-size:12px; color:#3498db; font-weight:bold; text-decoration:underline; cursor:pointer; transition: opacity 0.2s;">🎁 Redeem for '.number_format($cost).' Points</a></div>';
+                // COUPON CONFLICT CHECK
+                $disable_with_coupons = get_option('mc_pts_prod_disable_with_coupons', 'no') === 'yes';
+                $has_coupons = !empty(WC()->cart->get_applied_coupons());
+
+                // EXPLICIT UI DISCLAIMER TEXT
+                $base_only = get_option('mc_pts_prod_base_price_only', 'yes') === 'yes';
+                $customer_pays_tax = get_option('mc_pts_prod_tax_override', 'yes') === 'yes';
+                
+                $disclaimers = [];
+                if ($base_only) $disclaimers[] = 'premium add-ons';
+                if ($customer_pays_tax) $disclaimers[] = 'taxes';
+                $disclaimer_html = '';
+                if (!empty($disclaimers)) {
+                    $disclaimer_html = '<div style="font-size:11px; color:#d35400; font-style:italic; margin-top:4px; font-weight:600;">* Note: Customer pays for ' . implode(' and ', $disclaimers) . '.</div>';
+                }
+
+                if ($disable_with_coupons && $has_coupons) {
+                    $item_name .= '<div style="margin-top:5px; font-size:12px; color:#e74c3c; font-weight:bold;">🔒 Cannot be combined with coupons.</div>';
                 } else {
-                    $item_name .= '<div style="margin-top:5px; font-size:12px; color:#999;">🔒 Requires '.number_format($cost).' Points</div>';
+                    if ($redeemed_key === $cart_item_key) {
+                        $item_name .= '<div style="margin-top:5px; font-size:12px; color:#2ecc71; font-weight:bold;">✅ Redeemed (-'.number_format($cost).' Points) <a href="#" class="mc-remove-product-redemption mc-remove-hover" style="color:#e74c3c; text-decoration:underline; margin-left:10px; cursor:pointer;">Remove</a></div>' . $disclaimer_html;
+                    } elseif ($balance >= $cost) {
+                        $item_name .= '<div style="margin-top:5px;"><a href="#" class="mc-trigger-cart-redemption" data-key="'.esc_attr($cart_item_key).'" data-product="'.esc_attr($product->get_name()).'" data-cost="'.esc_attr($cost).'" style="font-size:12px; color:#3498db; font-weight:bold; text-decoration:underline; cursor:pointer; transition: opacity 0.2s;">🎁 Redeem for '.number_format($cost).' Points</a></div>' . $disclaimer_html;
+                    } else {
+                        $item_name .= '<div style="margin-top:5px; font-size:12px; color:#999;">🔒 Requires '.number_format($cost).' Points</div>';
+                    }
                 }
             }
         }
@@ -155,6 +176,12 @@ class MC_Points_Checkout {
         $is_product_mode = get_option('mc_pts_prod_enable', 'no') === 'yes';
         if ( $is_product_mode ) {
             return; 
+        }
+
+        // Check if coupons are present and disable global slider if needed
+        $disable_with_coupons = get_option('mc_pts_prod_disable_with_coupons', 'no') === 'yes';
+        if ( $disable_with_coupons && !empty(WC()->cart->get_applied_coupons()) ) {
+            return;
         }
 
         $rules = get_option('mc_redeem_ui_settings', []); 
@@ -187,18 +214,29 @@ class MC_Points_Checkout {
         if ($style === 'hidden') return;
 
         ?>
+        <style>
+            .mc-btn-hover { transition: all 0.2s ease-in-out !important; }
+            .mc-btn-hover:hover { transform: translateY(-2px); filter: brightness(0.9); }
+            .mc-remove-hover { transition: color 0.2s ease; }
+            .mc-remove-hover:hover { color: #c0392b !important; text-decoration: none !important; }
+            .mc-flex-row-mobile { display: flex; gap: 15px; align-items: center; }
+            @media (max-width: 480px) {
+                .mc-flex-row-mobile { flex-direction: column; align-items: stretch; }
+                .mc-flex-row-mobile button { width: 100%; }
+            }
+        </style>
         <div class="mc-redemption-box" style="background:<?php echo esc_attr($custom['box_bg'] ?? '#fef8ee'); ?>; border:2px solid <?php echo esc_attr($custom['box_border'] ?? '#f6c064'); ?>; padding:25px; border-radius:12px; margin-bottom:30px; box-shadow:0 4px 15px rgba(0,0,0,0.03);">
             <h3 style="margin:0 0 15px 0; font-size:18px; color:#111; font-weight:800;"><?php echo esc_html($custom['box_title'] ?? 'Use your Loyalty Points'); ?></h3>
             
             <?php if ( $applied > 0 ): ?>
-                <div style="background:#fff; border:1px solid #eee; padding:15px; border-radius:8px; display:flex; justify-content:space-between; align-items:center;">
+                <div style="background:#fff; border:1px solid #eee; padding:15px; border-radius:8px; display:flex; justify-content:space-between; align-items:center; flex-wrap: wrap; gap: 10px;">
                     <span style="color:#2ecc71; font-weight:bold;">✅ <?php echo number_format($applied); ?> Points Applied for a <?php echo wc_price(($applied / $pts_ratio) * $cur_ratio); ?> discount!</span>
-                    <button type="button" id="mc-remove-pts" style="background:transparent; border:none; color:#e74c3c; cursor:pointer; text-decoration:underline; font-weight:bold;">Remove</button>
+                    <button type="button" id="mc-remove-pts" class="mc-remove-hover" style="background:transparent; border:none; color:#e74c3c; cursor:pointer; text-decoration:underline; font-weight:bold;">Remove</button>
                 </div>
             <?php else: ?>
                 <div style="display:flex; flex-direction:column; gap:15px;">
                     <p style="margin:0; font-size:14px; color:#666;">You have <strong><?php echo number_format($balance); ?></strong> points available.</p>
-                    <div style="display:flex; gap:15px; align-items:center;">
+                    <div class="mc-flex-row-mobile">
                         <?php if ($style === 'slider'): ?>
                             <div style="flex:1;">
                                 <input type="range" id="mc-pts-range" min="0" max="<?php echo esc_attr($usable_points); ?>" value="0" style="width:100%;">
@@ -214,7 +252,7 @@ class MC_Points_Checkout {
                                 </label>
                             </div>
                         <?php endif; ?>
-                        <button type="button" id="mc-apply-pts" style="background:<?php echo esc_attr($custom['btn_bg'] ?? '#d35400'); ?>; color:<?php echo esc_attr($custom['btn_text'] ?? '#ffffff'); ?>; border:none; padding:12px 25px; border-radius:6px; font-weight:bold; cursor:pointer;">Apply Discount</button>
+                        <button type="button" id="mc-apply-pts" class="mc-btn-hover" style="background:<?php echo esc_attr($custom['btn_bg'] ?? '#d35400'); ?>; color:<?php echo esc_attr($custom['btn_text'] ?? '#ffffff'); ?>; border:none; padding:12px 25px; border-radius:6px; font-weight:bold; cursor:pointer;">Apply Discount</button>
                     </div>
                 </div>
             <?php endif; ?>
@@ -223,11 +261,19 @@ class MC_Points_Checkout {
     }
 
     // -----------------------------------------------------------------------------------
-    // PART 3: APPLYING DISCOUNTS & POINT DEDUCTIONS
+    // PART 3: APPLYING DISCOUNTS (THE BULLETPROOF CART MIRROR ENGINE)
     // -----------------------------------------------------------------------------------
     public function apply_points_fee( $cart ) {
         if ( is_admin() && ! defined( 'DOING_AJAX' ) ) return;
         
+        // COUPON LOCKOUT CHECK
+        $disable_with_coupons = get_option('mc_pts_prod_disable_with_coupons', 'no') === 'yes';
+        if ( $disable_with_coupons && !empty($cart->get_applied_coupons()) ) {
+            WC()->session->__unset('mc_redeemed_cart_item');
+            WC()->session->__unset('mc_points_applied');
+            return;
+        }
+
         $is_product_mode = get_option('mc_pts_prod_enable', 'no') === 'yes';
 
         if ( $is_product_mode ) {
@@ -235,14 +281,57 @@ class MC_Points_Checkout {
             if ( $redeemed_key && isset($cart->cart_contents[$redeemed_key]) ) {
                 $cart_item = $cart->cart_contents[$redeemed_key];
                 
-                $base_only = get_option('mc_pts_prod_base_price_only', 'no') === 'yes';
-                $customer_pays_tax = get_option('mc_pts_prod_tax_override', 'no') === 'yes';
+                $base_only = get_option('mc_pts_prod_base_price_only', 'yes') === 'yes';
+                $customer_pays_tax = get_option('mc_pts_prod_tax_override', 'yes') === 'yes';
                 
-                $price = $base_only ? $cart_item['data']->get_regular_price() : $cart_item['data']->get_price();
-                $is_taxable = !$customer_pays_tax;
+                // 1. EXTRACT REAL CART MATH
+                // WooCommerce add_fee() strictly requires the EXCLUSIVE tax amount.
+                // We bypass all buggy Woo lookups by extracting the exact pre-tax fraction already in the cart.
+                $qty = (int) $cart_item['quantity'];
+                if ( $qty <= 0 ) return;
 
-                if ($price > 0) {
-                    $cart->add_fee( 'Reward: ' . $cart_item['data']->get_name(), -$price, $is_taxable );
+                $line_subtotal_ex_tax = (float) $cart_item['line_subtotal']; // Always perfectly pre-tax
+                $line_tax = (float) $cart_item['line_subtotal_tax'];
+                
+                $unit_ex_tax = $line_subtotal_ex_tax / $qty;
+                $unit_tax = $line_tax / $qty;
+                $unit_incl_tax = $unit_ex_tax + $unit_tax;
+
+                $target_ex_tax = $unit_ex_tax;
+
+                // 2. COMBO / BASE PRICE STRIPPING
+                if ( $base_only ) {
+                    $prod_id = !empty($cart_item['variation_id']) ? $cart_item['variation_id'] : $cart_item['product_id'];
+                    $raw_product = wc_get_product($prod_id);
+                    if ( $raw_product ) {
+                        $raw_price = (float) $raw_product->get_price();
+                        if ( wc_prices_include_tax() ) {
+                            // Find the exact ratio to mathematically strip the tax off the sticker price
+                            $ratio = ($unit_incl_tax > 0) ? ($unit_ex_tax / $unit_incl_tax) : 1;
+                            $target_ex_tax = $raw_price * $ratio;
+                        } else {
+                            // Store is exclusive, the raw price is already pre-tax
+                            $target_ex_tax = $raw_price;
+                        }
+                    }
+                }
+
+                // 3. APPLY THE FEE
+                if ( $target_ex_tax > 0 ) {
+                    $fee_label = 'Reward: ' . $cart_item['data']->get_name();
+                    if ($base_only && !$customer_pays_tax) $fee_label .= ' (Base Price)';
+                    elseif (!$base_only && $customer_pays_tax) $fee_label .= ' (Excl. Tax)';
+                    elseif ($base_only && $customer_pays_tax) $fee_label .= ' (Base Price, Excl. Tax)';
+
+                    if ( $customer_pays_tax ) {
+                        // Customer Pays Tax: We deduct the PRE-TAX fraction and pass FALSE. 
+                        // WooCommerce drops the subtotal but leaves the tax perfectly untouched.
+                        $cart->add_fee( $fee_label, -round($target_ex_tax, 4), false );
+                    } else {
+                        // 100% Free: We deduct the PRE-TAX fraction and pass TRUE.
+                        // WooCommerce generates a negative tax to perfectly wipe it out (-$92.00 total).
+                        $cart->add_fee( $fee_label, -round($target_ex_tax, 4), true, $cart_item['data']->get_tax_class() );
+                    }
                 }
             }
         } else {
@@ -256,7 +345,7 @@ class MC_Points_Checkout {
                     $custom = get_option('mc_customization_settings', []);
                     $label = !empty($custom['lbl_btn_redeem']) ? $custom['lbl_btn_redeem'] : 'Points Discount';
                     if ( $discount > 0 ) {
-                        $cart->add_fee( $label, -$discount );
+                        $cart->add_fee( $label, -round($discount, 2), false );
                     }
                 }
             }
@@ -353,14 +442,23 @@ class MC_Points_Checkout {
         $terms_url = $cat_settings['terms_url'] ?? '';
         $max_per_cart = get_option('mc_pts_prod_max_per_cart', '1');
         
+        // Build Popup Disclaimer
+        $base_only = get_option('mc_pts_prod_base_price_only', 'yes') === 'yes';
+        $customer_pays_tax = get_option('mc_pts_prod_tax_override', 'yes') === 'yes';
+        $disclaimers = [];
+        if ($base_only) $disclaimers[] = 'premium add-ons';
+        if ($customer_pays_tax) $disclaimers[] = 'taxes';
+        $disclaimer_html = '';
+        if (!empty($disclaimers)) {
+            $disclaimer_html = '<div style="font-size:12px; color:#d35400; font-style:italic; margin-bottom:20px; font-weight:bold;">* Note: You are responsible for paying ' . implode(' and ', $disclaimers) . '.</div>';
+        }
+
         $desc_template = esc_js($custom['pop_desc'] ?? 'Are you sure you want to spend {points} points to get {product} for free?');
         $ajax_url = esc_url(admin_url('admin-ajax.php'));
 
         ?>
         <style>
             .mc-modal-btns { display: flex; gap: 15px; margin-top: 25px; }
-            .mc-btn-hover { transition: all 0.2s ease-in-out !important; }
-            .mc-btn-hover:hover { transform: translateY(-2px); filter: brightness(0.9); }
             @media (max-width: 480px) { .mc-modal-btns { flex-direction: column; gap: 10px; } }
         </style>
 
@@ -369,7 +467,9 @@ class MC_Points_Checkout {
                 <h2 id="mc-pop-title" style="margin-top:0; font-weight:900; color:inherit;"><?php echo esc_html($custom['pop_title'] ?? 'Unlock this Reward?'); ?></h2>
                 <p id="mc-pop-desc" style="font-size:15px; line-height:1.5; margin-bottom:20px; color:inherit;"></p>
                 
-                <p style="font-size:13px; color:#e74c3c; font-weight:bold; margin-top:-10px; margin-bottom:20px;">Limit: <?php echo esc_html($max_per_cart); ?> reward redemption(s) per order.</p>
+                <p style="font-size:13px; color:#e74c3c; font-weight:bold; margin-top:-10px; margin-bottom:15px;">Limit: <?php echo esc_html($max_per_cart); ?> reward redemption(s) per order.</p>
+                
+                <?php echo $disclaimer_html; ?>
 
                 <div style="background:#f9f9f9; padding:15px; border-radius:8px; text-align:left; margin-bottom:20px; font-size:14px; color:#333; border:1px solid #eee;">
                     <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
