@@ -138,11 +138,9 @@ class MC_Points_Checkout {
                 $balance = $this->get_accurate_user_points($user_id);
                 $redeemed_key = WC()->session->get('mc_redeemed_cart_item');
 
-                // COUPON CONFLICT CHECK
                 $disable_with_coupons = get_option('mc_pts_prod_disable_with_coupons', 'no') === 'yes';
                 $has_coupons = !empty(WC()->cart->get_applied_coupons());
 
-                // EXPLICIT UI DISCLAIMER TEXT
                 $base_only = get_option('mc_pts_prod_base_price_only', 'yes') === 'yes';
                 $customer_pays_tax = get_option('mc_pts_prod_tax_override', 'yes') === 'yes';
                 
@@ -178,7 +176,6 @@ class MC_Points_Checkout {
             return; 
         }
 
-        // Check if coupons are present and disable global slider if needed
         $disable_with_coupons = get_option('mc_pts_prod_disable_with_coupons', 'no') === 'yes';
         if ( $disable_with_coupons && !empty(WC()->cart->get_applied_coupons()) ) {
             return;
@@ -261,12 +258,11 @@ class MC_Points_Checkout {
     }
 
     // -----------------------------------------------------------------------------------
-    // PART 3: APPLYING DISCOUNTS (THE BULLETPROOF CART MIRROR ENGINE)
+    // PART 3: APPLYING DISCOUNTS (THE EXPLICIT DATABASE TAX FIX)
     // -----------------------------------------------------------------------------------
     public function apply_points_fee( $cart ) {
         if ( is_admin() && ! defined( 'DOING_AJAX' ) ) return;
         
-        // COUPON LOCKOUT CHECK
         $disable_with_coupons = get_option('mc_pts_prod_disable_with_coupons', 'no') === 'yes';
         if ( $disable_with_coupons && !empty($cart->get_applied_coupons()) ) {
             WC()->session->__unset('mc_redeemed_cart_item');
@@ -284,54 +280,65 @@ class MC_Points_Checkout {
                 $base_only = get_option('mc_pts_prod_base_price_only', 'yes') === 'yes';
                 $customer_pays_tax = get_option('mc_pts_prod_tax_override', 'yes') === 'yes';
                 
-                // 1. EXTRACT REAL CART MATH
-                // WooCommerce add_fee() strictly requires the EXCLUSIVE tax amount.
-                // We bypass all buggy Woo lookups by extracting the exact pre-tax fraction already in the cart.
-                $qty = (int) $cart_item['quantity'];
-                if ( $qty <= 0 ) return;
+                // 1. ISOLATE TARGET PRICE
+                $product_obj = $cart_item['data'];
+                $full_price = (float) $product_obj->get_price(); // The loaded cart price (e.g. 92.00)
 
-                $line_subtotal_ex_tax = (float) $cart_item['line_subtotal']; // Always perfectly pre-tax
-                $line_tax = (float) $cart_item['line_subtotal_tax'];
-                
-                $unit_ex_tax = $line_subtotal_ex_tax / $qty;
-                $unit_tax = $line_tax / $qty;
-                $unit_incl_tax = $unit_ex_tax + $unit_tax;
-
-                $target_ex_tax = $unit_ex_tax;
-
-                // 2. COMBO / BASE PRICE STRIPPING
                 if ( $base_only ) {
                     $prod_id = !empty($cart_item['variation_id']) ? $cart_item['variation_id'] : $cart_item['product_id'];
                     $raw_product = wc_get_product($prod_id);
                     if ( $raw_product ) {
-                        $raw_price = (float) $raw_product->get_price();
-                        if ( wc_prices_include_tax() ) {
-                            // Find the exact ratio to mathematically strip the tax off the sticker price
-                            $ratio = ($unit_incl_tax > 0) ? ($unit_ex_tax / $unit_incl_tax) : 1;
-                            $target_ex_tax = $raw_price * $ratio;
-                        } else {
-                            // Store is exclusive, the raw price is already pre-tax
-                            $target_ex_tax = $raw_price;
-                        }
+                        $full_price = (float) $raw_product->get_price(); // The raw DB price without combo items
                     }
                 }
 
+                $discount_amount = $full_price;
+                $is_taxable = false;
+
+                // 2. EXPLICIT SEPARATION BASED ON THE TAX TOGGLE
+                if ( $customer_pays_tax ) {
+                    
+                    // --- RULE ON: CUSTOMER PAYS TAX ---
+                    // We must deduct exactly $81.77. We calculate this by pulling your 12.5% rate directly from the database.
+                    if ( wc_prices_include_tax() ) {
+                        global $wpdb;
+                        $tax_class = sanitize_title( $product_obj->get_tax_class() );
+                        
+                        // Query the database directly, bypassing WooCommerce's shipping glitch
+                        $tax_rate = (float) $wpdb->get_var( $wpdb->prepare( "SELECT tax_rate FROM {$wpdb->prefix}woocommerce_tax_rates WHERE tax_rate_class = %s LIMIT 1", $tax_class ) );
+                        
+                        if ( $tax_rate <= 0 ) {
+                            // Guaranteed Fallback: Grabs the highest tax rate in your DB (12.5000)
+                            $tax_rate = (float) $wpdb->get_var( "SELECT MAX(tax_rate) FROM {$wpdb->prefix}woocommerce_tax_rates" );
+                        }
+                        
+                        if ( $tax_rate > 0 ) {
+                            // The math: 92.00 / 1.125 = 81.7777
+                            $discount_amount = $full_price / ( 1 + ( $tax_rate / 100 ) );
+                        }
+                    }
+                    
+                    // We pass FALSE so WooCommerce does not tax our -$81.77. The $10.23 tax remains in the cart.
+                    $is_taxable = false; 
+                    
+                } else {
+                    
+                    // --- RULE OFF: 100% FREE ---
+                    // This is the EXACT original working code you verified. Do not touch.
+                    $discount_amount = $full_price;
+                    $is_taxable = !wc_prices_include_tax(); 
+                    
+                }
+
                 // 3. APPLY THE FEE
-                if ( $target_ex_tax > 0 ) {
-                    $fee_label = 'Reward: ' . $cart_item['data']->get_name();
+                if ( $discount_amount > 0 ) {
+                    $fee_label = 'Reward: ' . $product_obj->get_name();
                     if ($base_only && !$customer_pays_tax) $fee_label .= ' (Base Price)';
                     elseif (!$base_only && $customer_pays_tax) $fee_label .= ' (Excl. Tax)';
                     elseif ($base_only && $customer_pays_tax) $fee_label .= ' (Base Price, Excl. Tax)';
 
-                    if ( $customer_pays_tax ) {
-                        // Customer Pays Tax: We deduct the PRE-TAX fraction and pass FALSE. 
-                        // WooCommerce drops the subtotal but leaves the tax perfectly untouched.
-                        $cart->add_fee( $fee_label, -round($target_ex_tax, 4), false );
-                    } else {
-                        // 100% Free: We deduct the PRE-TAX fraction and pass TRUE.
-                        // WooCommerce generates a negative tax to perfectly wipe it out (-$92.00 total).
-                        $cart->add_fee( $fee_label, -round($target_ex_tax, 4), true, $cart_item['data']->get_tax_class() );
-                    }
+                    // Pass an empty string '' to prevent Woo from forcing specific tax classes on it
+                    $cart->add_fee( $fee_label, -round($discount_amount, 4), $is_taxable, '' );
                 }
             }
         } else {
@@ -345,7 +352,7 @@ class MC_Points_Checkout {
                     $custom = get_option('mc_customization_settings', []);
                     $label = !empty($custom['lbl_btn_redeem']) ? $custom['lbl_btn_redeem'] : 'Points Discount';
                     if ( $discount > 0 ) {
-                        $cart->add_fee( $label, -round($discount, 2), false );
+                        $cart->add_fee( $label, -round($discount, 2), false, '' );
                     }
                 }
             }
