@@ -275,7 +275,14 @@ class MC_Points_Account {
                                                 <div style="display:flex; justify-content:space-between; font-size:11px; color:#888; font-weight:700; margin-bottom:6px; text-transform:uppercase;"><span><?php echo number_format($balance); ?> Pts</span><span><?php echo number_format($cost); ?> Pts Goal</span></div><div style="background:<?php echo esc_attr($prog_bg_color); ?>; height:12px; border-radius:10px; overflow:hidden; position:relative; margin-bottom:15px; box-shadow:inset 0 1px 3px rgba(0,0,0,0.05);"><div style="background:<?php echo esc_attr($active_bar_color); ?>; width:<?php echo $percent; ?>%; height:100%; transition:width 0.8s ease-out; position:relative;"><?php if(!$can_afford && $percent > 0): ?><div style="position:absolute; right:0; top:0; bottom:0; width:4px; background:rgba(255,255,255,0.7); box-shadow:-2px 0 4px rgba(0,0,0,0.15);"></div><?php endif; ?></div></div>
                                             <?php endif; ?>
                                         <?php endif; ?>
-                                        <a href="<?php echo esc_url($p->get_permalink()); ?>" class="mc-reward-btn <?php echo $can_afford ? 'mc-ready' : ''; ?>" style="display:block; text-align:center; padding:10px 15px; border-radius:6px; text-decoration:none; font-weight:700; font-size:13px; text-transform:uppercase; <?php echo $can_afford ? 'background:'.esc_attr($primary_color).'; color:#fff;' : 'background:#f5f5f5; color:#888; border:1px solid #ddd; pointer-events:none;'; ?>"><?php echo esc_html($btn_text); ?></a>
+                                        <a href="<?php echo esc_url($p->get_permalink()); ?>" 
+                                           class="mc-reward-btn <?php echo $can_afford ? 'mc-trigger-redemption mc-ready' : ''; ?>" 
+                                           data-product="<?php echo esc_attr($p->get_name()); ?>"
+                                           data-points="<?php echo esc_attr($cost); ?>"
+                                           data-id="<?php echo esc_attr($p->get_id()); ?>"
+                                           style="display:block; text-align:center; padding:10px 15px; border-radius:6px; text-decoration:none; font-weight:700; font-size:13px; text-transform:uppercase; <?php echo $can_afford ? 'background:'.esc_attr($primary_color).'; color:#fff;' : 'background:#f5f5f5; color:#888; border:1px solid #ddd; pointer-events:none;'; ?>">
+                                           <?php echo esc_html($btn_text); ?>
+                                        </a>
                                     </div>
                                 </div>
                             </div>
