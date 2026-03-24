@@ -20,13 +20,15 @@ class MC_Tab_Customization {
         $settings = get_option('mc_customization_settings', []);
         $current_sub = isset($_GET['sub']) ? sanitize_text_field($_GET['sub']) : 'general';
         
+        // ADDED: The new Checkout UI & Popups Sub-Tab
         $subtabs = [
             'general'       => 'General',
             'shop'          => 'Points in Shop Pages',
             'product'       => 'Points in Product Page',
             'account'       => 'Points in My Account',
             'cart_checkout' => 'Points in Cart & Checkout',
-            'giveaways'     => 'Auto-Giveaways UI', // NEW: MealCrafter Feature
+            'checkout_ui'   => 'Checkout UI & Popups', 
+            'giveaways'     => 'Auto-Giveaways UI',
             'labels'        => 'Labels'
         ];
 
@@ -113,7 +115,7 @@ class MC_Tab_Customization {
 
                     <?php 
                     // ==========================================
-                    // PRODUCT PAGE TAB (Includes Badge Designer)
+                    // PRODUCT PAGE TAB
                     // ==========================================
                     elseif ($current_sub === 'product'): 
                         $prod_show = $settings['prod_show'] ?? 'yes';
@@ -123,7 +125,6 @@ class MC_Tab_Customization {
                         $prod_color_text = $settings['prod_color_text'] ?? '#2271b1';
                         $prod_color_bg = $settings['prod_color_bg'] ?? '#eaf2fa';
 
-                        // Badge Settings
                         $badge_bg = $settings['badge_bg'] ?? '#fef8ee';
                         $badge_border = $settings['badge_border'] ?? '#f6c064';
                         $badge_text = $settings['badge_text_color'] ?? '#d35400';
@@ -167,7 +168,7 @@ class MC_Tab_Customization {
                         </div>
 
                         <div class="mc-rule-card" style="padding:25px; border-left:4px solid #8e44ad;">
-                            <h3 style="margin-top:0; border-bottom:1px solid #eee; padding-bottom:10px; margin-bottom:20px;">Redemption Badges (Combos & Products)</h3>
+                            <h3 style="margin-top:0; border-bottom:1px solid #eee; padding-bottom:10px; margin-bottom:20px;">Redemption Badges</h3>
                             
                             <div class="mc-form-row" style="display:flex; gap:40px; margin-bottom:20px;">
                                 <div><span class="mc-form-label">Background Color</span><input type="color" name="mc_custom[badge_bg]" value="<?php echo esc_attr($badge_bg); ?>" class="mc-color-picker-small"></div>
@@ -210,7 +211,7 @@ class MC_Tab_Customization {
 
                     <?php 
                     // ==========================================
-                    // MY ACCOUNT TAB (Includes Catalog Dashboard UI)
+                    // MY ACCOUNT TAB
                     // ==========================================
                     elseif ($current_sub === 'account'): 
                         $acc_show = $settings['account_show'] ?? 'yes';
@@ -220,7 +221,6 @@ class MC_Tab_Customization {
                         $acc_show_orders = $settings['account_show_orders'] ?? 'yes';
                         $acc_show_email = $settings['account_show_email'] ?? 'yes';
                         
-                        // Dashboard UI
                         $default_tab = $settings['default_tab'] ?? 'catalog';
                         $dash_title_size = $settings['dash_title_size'] ?? '28';
                         $dash_val_size = $settings['dash_val_size'] ?? '36';
@@ -338,7 +338,119 @@ class MC_Tab_Customization {
 
                     <?php 
                     // ==========================================
-                    // AUTO-GIVEAWAYS TAB (MealCrafter Exclusive)
+                    // CHECKOUT UI & PRODUCT POPUPS (NEW!)
+                    // ==========================================
+                    elseif ($current_sub === 'checkout_ui'): 
+                        // Checkout Box UI
+                        $box_style = $settings['box_style'] ?? 'slider';
+                        $box_pos = $settings['box_pos'] ?? 'before_checkout_form';
+                        $box_title = $settings['box_title'] ?? 'Use your Loyalty Points';
+                        $box_bg = $settings['box_bg'] ?? '#fef8ee';
+                        $box_border = $settings['box_border'] ?? '#f6c064';
+                        $btn_bg = $settings['btn_bg'] ?? '#d35400';
+                        $btn_text = $settings['btn_text'] ?? '#ffffff';
+
+                        // Product Popup UI
+                        $pop_enable = $settings['pop_enable'] ?? 'yes';
+                        $pop_title = $settings['pop_title'] ?? 'Unlock this Reward?';
+                        $pop_desc = $settings['pop_desc'] ?? 'Are you sure you want to spend {points} points to get this item for free?';
+                        $pop_btn_yes = $settings['pop_btn_yes'] ?? 'Yes, Unlock It!';
+                        $pop_btn_no = $settings['pop_btn_no'] ?? 'Not right now';
+                        $pop_success = $settings['pop_success'] ?? 'Reward successfully added to your cart!';
+                        
+                        $pop_bg = $settings['pop_bg'] ?? '#ffffff';
+                        $pop_btn_color = $settings['pop_btn_color'] ?? '#2ecc71';
+                        $pop_text_color = $settings['pop_text_color'] ?? '#111111';
+                    ?>
+                        <div class="mc-rule-card" style="padding:25px; border-left:4px solid #3498db; margin-bottom:30px;">
+                            <h3 style="margin-top:0; border-bottom:1px solid #eee; padding-bottom:10px; margin-bottom:20px;">"Pay with Points" Checkout Box Designer</h3>
+                            <p style="margin-top:-10px; margin-bottom:20px; color:#666; font-size:13px;">Design the box that appears on the Cart/Checkout pages allowing users to apply a points discount.</p>
+                            
+                            <div class="mc-form-row" style="display:flex; gap:20px; margin-bottom:20px;">
+                                <div style="flex:1;">
+                                    <span class="mc-form-label">Redemption UI Style</span>
+                                    <select name="mc_custom[box_style]" style="width:100%;">
+                                        <option value="slider" <?php selected($box_style, 'slider'); ?>>Modern Range Slider (Recommended)</option>
+                                        <option value="input" <?php selected($box_style, 'input'); ?>>Standard Input Box</option>
+                                        <option value="toggle" <?php selected($box_style, 'toggle'); ?>>"Use All Points" Toggle Switch</option>
+                                        <option value="woo_link" <?php selected($box_style, 'woo_link'); ?>>Native WooCommerce Coupon Link</option>
+                                    </select>
+                                </div>
+                                <div style="flex:1;">
+                                    <span class="mc-form-label">Position on Checkout Page</span>
+                                    <select name="mc_custom[box_pos]" style="width:100%;">
+                                        <option value="before_checkout_form" <?php selected($box_pos, 'before_checkout_form'); ?>>Before Checkout Form</option>
+                                        <option value="after_checkout_form" <?php selected($box_pos, 'after_checkout_form'); ?>>After Checkout Form</option>
+                                        <option value="review_order_before_submit" <?php selected($box_pos, 'review_order_before_submit'); ?>>Above Payment Button</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="mc-form-row">
+                                <span class="mc-form-label">Redemption Box Title</span>
+                                <input type="text" name="mc_custom[box_title]" value="<?php echo esc_attr($box_title); ?>" style="width:100%;">
+                            </div>
+
+                            <div class="mc-form-row" style="display:flex; gap:40px; margin-top:20px; background:#f9f9f9; padding:20px; border-radius:8px; border:1px solid #eee;">
+                                <div><span class="mc-form-label">Box Background</span><input type="color" name="mc_custom[box_bg]" value="<?php echo esc_attr($box_bg); ?>" class="mc-color-picker-small"></div>
+                                <div><span class="mc-form-label">Box Border</span><input type="color" name="mc_custom[box_border]" value="<?php echo esc_attr($box_border); ?>" class="mc-color-picker-small"></div>
+                                <div><span class="mc-form-label">Apply Button Color</span><input type="color" name="mc_custom[btn_bg]" value="<?php echo esc_attr($btn_bg); ?>" class="mc-color-picker-small"></div>
+                                <div><span class="mc-form-label">Apply Button Text</span><input type="color" name="mc_custom[btn_text]" value="<?php echo esc_attr($btn_text); ?>" class="mc-color-picker-small"></div>
+                            </div>
+                        </div>
+
+                        <div class="mc-rule-card" style="padding:25px; border-left:4px solid #9b59b6;">
+                            <h3 style="margin-top:0; border-bottom:1px solid #eee; padding-bottom:10px; margin-bottom:20px;">Product-Level Reward Confirmation Modal</h3>
+                            <p style="margin-top:-10px; margin-bottom:20px; color:#666; font-size:13px;">Design the popup that appears when a user clicks the "Redeem" button on a specific catalog item.</p>
+
+                            <div class="mc-toggle-row" style="margin-bottom:20px;">
+                                <div class="mc-form-info"><span class="mc-form-label">Enable Product Redemption Modal</span><span class="mc-form-desc">If disabled, clicking the redeem button adds the item to cart immediately without asking for confirmation.</span></div>
+                                <label class="mc-toggle-switch">
+                                    <input type="hidden" name="mc_custom[pop_enable]" value="no">
+                                    <input type="checkbox" name="mc_custom[pop_enable]" value="yes" <?php checked($pop_enable, 'yes'); ?>>
+                                    <span class="mc-slider"></span>
+                                </label>
+                            </div>
+
+                            <div class="mc-form-row" style="display:flex; gap:20px; margin-bottom:20px;">
+                                <div style="flex:1;">
+                                    <span class="mc-form-label">Modal Title</span>
+                                    <input type="text" name="mc_custom[pop_title]" value="<?php echo esc_attr($pop_title); ?>" style="width:100%; font-weight:bold;">
+                                </div>
+                                <div style="flex:2;">
+                                    <span class="mc-form-label">Confirmation Description</span>
+                                    <span class="mc-form-desc" style="color:#2271b1; font-size:12px;">Variables: <code>{points}</code>, <code>{product}</code></span>
+                                    <input type="text" name="mc_custom[pop_desc]" value="<?php echo esc_attr($pop_desc); ?>" style="width:100%;">
+                                </div>
+                            </div>
+
+                            <div class="mc-form-row" style="display:flex; gap:20px; margin-bottom:20px;">
+                                <div style="flex:1;">
+                                    <span class="mc-form-label">Confirm Button Text</span>
+                                    <input type="text" name="mc_custom[pop_btn_yes]" value="<?php echo esc_attr($pop_btn_yes); ?>" style="width:100%;">
+                                </div>
+                                <div style="flex:1;">
+                                    <span class="mc-form-label">Cancel Button Text</span>
+                                    <input type="text" name="mc_custom[pop_btn_no]" value="<?php echo esc_attr($pop_btn_no); ?>" style="width:100%;">
+                                </div>
+                            </div>
+
+                            <div class="mc-form-row" style="margin-bottom:20px;">
+                                <span class="mc-form-label">Success Message (After Adding to Cart)</span>
+                                <input type="text" name="mc_custom[pop_success]" value="<?php echo esc_attr($pop_success); ?>" style="width:100%; border-color:#2ecc71;">
+                            </div>
+
+                            <h4 style="margin:30px 0 15px 0;">Modal Styling</h4>
+                            <div class="mc-form-row" style="display:flex; gap:40px; background:#f9f9f9; padding:20px; border-radius:8px; border:1px solid #eee;">
+                                <div><span class="mc-form-label">Modal Background</span><input type="color" name="mc_custom[pop_bg]" value="<?php echo esc_attr($pop_bg); ?>" class="mc-color-picker-small"></div>
+                                <div><span class="mc-form-label">Text Color</span><input type="color" name="mc_custom[pop_text_color]" value="<?php echo esc_attr($pop_text_color); ?>" class="mc-color-picker-small"></div>
+                                <div><span class="mc-form-label">Confirm Button Color</span><input type="color" name="mc_custom[pop_btn_color]" value="<?php echo esc_attr($pop_btn_color); ?>" class="mc-color-picker-small"></div>
+                            </div>
+                        </div>
+
+                    <?php 
+                    // ==========================================
+                    // AUTO-GIVEAWAYS TAB 
                     // ==========================================
                     elseif ($current_sub === 'giveaways'): 
                         $ga_title = $settings['ga_title'] ?? '🎉 Free Reward Unlocked!';
@@ -348,8 +460,6 @@ class MC_Tab_Customization {
                     ?>
                         <div class="mc-rule-card" style="padding:25px; border-left:4px solid #1abc9c;">
                             <h3 style="margin-top:0; border-bottom:1px solid #eee; padding-bottom:10px; margin-bottom:20px;">Auto-Giveaway Notifications</h3>
-                            <p style="margin-top:-10px; margin-bottom:20px; color:#666; font-size:13px;">Customize the notification shown when a user automatically unlocks a free item.</p>
-
                             <div class="mc-form-row" style="margin-bottom:20px;">
                                 <span class="mc-form-label">Giveaway Notification Title</span>
                                 <input type="text" name="mc_custom[ga_title]" value="<?php echo esc_attr($ga_title); ?>" style="width:100%;">
@@ -359,7 +469,6 @@ class MC_Tab_Customization {
                                 <span class="mc-form-desc" style="color:#2271b1;">Available Variables: <code>{product_name}</code></span>
                                 <input type="text" name="mc_custom[ga_msg]" value="<?php echo esc_attr($ga_msg); ?>" style="width:100%;">
                             </div>
-
                             <div class="mc-form-row" style="display:flex; gap:30px; margin-top:20px; background:#f9f9f9; padding:15px; border-radius:6px; border:1px solid #eee;">
                                 <div><span class="mc-form-label">Notification Background Color</span><input type="color" name="mc_custom[ga_bg]" value="<?php echo esc_attr($ga_bg); ?>" class="mc-color-picker-small"></div>
                                 <div><span class="mc-form-label">Notification Text Color</span><input type="color" name="mc_custom[ga_text]" value="<?php echo esc_attr($ga_text); ?>" class="mc-color-picker-small"></div>
