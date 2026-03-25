@@ -1,6 +1,8 @@
 <?php
 /**
  * MealCrafter: Loyalty Checkout & Cart Logic
+ * Updated: Wednesday, March 25, 2026
+ * Logic: Option A (Grouped Line Item for Perfect Native Tax Reporting)
  */
 if ( ! defined( 'ABSPATH' ) ) exit;
 
@@ -42,7 +44,7 @@ class MC_Points_Checkout {
     }
 
     // -----------------------------------------------------------------------------------
-    // PART 1: AUTO-GIVEAWAYS LOGIC (UNTOUCHED)
+    // PART 1: AUTO-GIVEAWAYS LOGIC
     // -----------------------------------------------------------------------------------
     public function process_smart_triggers() {
         if ( is_admin() && ! defined( 'DOING_AJAX' ) ) return;
@@ -119,7 +121,7 @@ class MC_Points_Checkout {
     }
 
     // -----------------------------------------------------------------------------------
-    // PART 2: UI INJECTIONS (CART ITEM TEXT & GLOBAL SLIDER)
+    // PART 2: UI INJECTIONS
     // -----------------------------------------------------------------------------------
     public function add_giveaway_badge_to_cart_name( $item_name, $cart_item, $cart_item_key ) {
         if ( isset( $cart_item['_mc_is_giveaway'] ) && $cart_item['_mc_is_giveaway'] === true ) {
@@ -127,7 +129,8 @@ class MC_Points_Checkout {
             $item_name .= $badge;
         }
 
-        $is_product_mode = get_option('mc_pts_prod_enable', 'no') === 'yes';
+        $pm_val = get_option('mc_pts_prod_enable', 'no');
+        $is_product_mode = in_array( strtolower( (string) $pm_val ), ['yes', 'on', '1', 'true'], true );
 
         if ( $is_product_mode && is_user_logged_in() && class_exists('MC_Points_Account') ) {
             $product = $cart_item['data'];
@@ -138,14 +141,18 @@ class MC_Points_Checkout {
                 $balance = $this->get_accurate_user_points($user_id);
                 $redeemed_key = WC()->session->get('mc_redeemed_cart_item');
 
-                $disable_with_coupons = get_option('mc_pts_prod_disable_with_coupons', 'no') === 'yes';
+                $dwc_val = get_option('mc_pts_prod_disable_with_coupons', 'no');
+                $disable_with_coupons = in_array( strtolower( (string) $dwc_val ), ['yes', 'on', '1', 'true'], true );
                 $has_coupons = !empty(WC()->cart->get_applied_coupons());
 
-                $base_only = get_option('mc_pts_prod_base_price_only', 'yes') === 'yes';
-                $customer_pays_tax = get_option('mc_pts_prod_tax_override', 'yes') === 'yes';
+                $base_val = get_option('mc_pts_prod_base_price_only', 'yes');
+                $base_only = in_array( strtolower( (string) $base_val ), ['yes', 'on', '1', 'true'], true );
+
+                $tax_val = get_option('mc_pts_prod_tax_override', 'yes');
+                $customer_pays_tax = in_array( strtolower( (string) $tax_val ), ['yes', 'on', '1', 'true'], true );
                 
                 $disclaimers = [];
-                if ($base_only) $disclaimers[] = 'premium add-ons';
+                if ($base_only) $disclaimers[] = 'premium upgrades';
                 if ($customer_pays_tax) $disclaimers[] = 'taxes';
                 $disclaimer_html = '';
                 if (!empty($disclaimers)) {
@@ -171,12 +178,14 @@ class MC_Points_Checkout {
     public function render_redemption_box() {
         if ( ! is_user_logged_in() || WC()->cart->is_empty() ) return;
 
-        $is_product_mode = get_option('mc_pts_prod_enable', 'no') === 'yes';
+        $pm_val = get_option('mc_pts_prod_enable', 'no');
+        $is_product_mode = in_array( strtolower( (string) $pm_val ), ['yes', 'on', '1', 'true'], true );
         if ( $is_product_mode ) {
             return; 
         }
 
-        $disable_with_coupons = get_option('mc_pts_prod_disable_with_coupons', 'no') === 'yes';
+        $dwc_val = get_option('mc_pts_prod_disable_with_coupons', 'no');
+        $disable_with_coupons = in_array( strtolower( (string) $dwc_val ), ['yes', 'on', '1', 'true'], true );
         if ( $disable_with_coupons && !empty(WC()->cart->get_applied_coupons()) ) {
             return;
         }
@@ -258,87 +267,134 @@ class MC_Points_Checkout {
     }
 
     // -----------------------------------------------------------------------------------
-    // PART 3: APPLYING DISCOUNTS (THE EXPLICIT DATABASE TAX FIX)
+    // PART 3: GROUPED MATH ENGINE (OPTION A) - SOLVES SORTING & NATIVE TAX REPORTING
     // -----------------------------------------------------------------------------------
     public function apply_points_fee( $cart ) {
         if ( is_admin() && ! defined( 'DOING_AJAX' ) ) return;
         
-        $disable_with_coupons = get_option('mc_pts_prod_disable_with_coupons', 'no') === 'yes';
+        $dwc_val = get_option('mc_pts_prod_disable_with_coupons', 'no');
+        $disable_with_coupons = in_array( strtolower( (string) $dwc_val ), ['yes', 'on', '1', 'true'], true );
+
         if ( $disable_with_coupons && !empty($cart->get_applied_coupons()) ) {
             WC()->session->__unset('mc_redeemed_cart_item');
             WC()->session->__unset('mc_points_applied');
             return;
         }
 
-        $is_product_mode = get_option('mc_pts_prod_enable', 'no') === 'yes';
+        $pm_val = get_option('mc_pts_prod_enable', 'no');
+        $is_product_mode = in_array( strtolower( (string) $pm_val ), ['yes', 'on', '1', 'true'], true );
 
         if ( $is_product_mode ) {
             $redeemed_key = WC()->session->get('mc_redeemed_cart_item');
             if ( $redeemed_key && isset($cart->cart_contents[$redeemed_key]) ) {
                 $cart_item = $cart->cart_contents[$redeemed_key];
                 
-                $base_only = get_option('mc_pts_prod_base_price_only', 'yes') === 'yes';
-                $customer_pays_tax = get_option('mc_pts_prod_tax_override', 'yes') === 'yes';
+                $base_val = get_option('mc_pts_prod_base_price_only', 'yes');
+                $base_only = in_array( strtolower( (string) $base_val ), ['yes', 'on', '1', 'true'], true );
+
+                $tax_val = get_option('mc_pts_prod_tax_override', 'yes');
+                $customer_pays_tax = in_array( strtolower( (string) $tax_val ), ['yes', 'on', '1', 'true'], true );
                 
-                // 1. ISOLATE TARGET PRICE
                 $product_obj = $cart_item['data'];
-                $full_price = (float) $product_obj->get_price(); // The loaded cart price (e.g. 92.00)
+                
+                // 1. EXTRACT CART PRICE
+                $line_total_incl_tax = $cart_item['line_subtotal'] + $cart_item['line_subtotal_tax'];
+                $qty = isset($cart_item['quantity']) && $cart_item['quantity'] > 0 ? $cart_item['quantity'] : 1;
+                $cart_price = $line_total_incl_tax / $qty; // Subtotal (e.g. 97.00)
+                
+                // 2. CUSTOM MEALCRAFTER HUNTER: Extracts Upgrade Costs & Names securely
+                $upgrade_cost = 0;
+                $upgrade_names = [];
+                if ( isset($cart_item['mc_combo_selections']) && is_array($cart_item['mc_combo_selections']) ) {
+                    $math_logic = get_option( 'mc_combo_math_logic', 'on' );
+                    $highest_extra = 0;
+                    $highest_name = '';
 
-                if ( $base_only ) {
-                    $prod_id = !empty($cart_item['variation_id']) ? $cart_item['variation_id'] : $cart_item['product_id'];
-                    $raw_product = wc_get_product($prod_id);
-                    if ( $raw_product ) {
-                        $full_price = (float) $raw_product->get_price(); // The raw DB price without combo items
+                    if ( $math_logic === 'on' ) {
+                        foreach ( $cart_item['mc_combo_selections'] as $sel ) {
+                            $id = is_array($sel) ? (isset($sel['id']) ? $sel['id'] : 0) : $sel;
+                            if ($id) {
+                                $p = wc_get_product( $id );
+                                if ( $p && (float)$p->get_price() > $highest_extra ) {
+                                    $highest_extra = (float)$p->get_price();
+                                    $clean_name = preg_replace('/\s*\(\+?\s*\$?[0-9.]+\)/', '', $p->get_name());
+                                    $highest_name = trim(strip_tags($clean_name));
+                                }
+                            }
+                        }
+                        if ($highest_extra > 0) {
+                            $upgrade_cost = $highest_extra;
+                            $upgrade_names[] = $highest_name;
+                        }
+                    } else {
+                        foreach ( $cart_item['mc_combo_selections'] as $sel ) {
+                            $id = is_array($sel) ? (isset($sel['id']) ? $sel['id'] : 0) : $sel;
+                            if ($id) {
+                                $p = wc_get_product( $id );
+                                if ( $p ) {
+                                    $price = (float) $p->get_price();
+                                    if ( $price > 0 ) {
+                                        $upgrade_cost += $price;
+                                        $clean_name = preg_replace('/\s*\(\+?\s*\$?[0-9.]+\)/', '', $p->get_name());
+                                        $upgrade_names[] = trim(strip_tags($clean_name));
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
 
-                $discount_amount = $full_price;
-                $is_taxable = false;
+                // 3. CALCULATE TRUE BASE PRICE (e.g. 97 - 5 = 92)
+                $base_price = $cart_price;
+                if ( $base_only && $upgrade_cost > 0 ) {
+                    $base_price = $cart_price - $upgrade_cost; 
+                }
 
-                // 2. EXPLICIT SEPARATION BASED ON THE TAX TOGGLE
+                // ==============================================================
+                // 4. CALCULATE PERFECT TAX & PRE-TAX DISCOUNT
+                // ==============================================================
+                $base_tax_amount = 0;
+                if ( wc_prices_include_tax() ) {
+                    $tax_rates = WC_Tax::get_rates( $product_obj->get_tax_class() );
+                    if ( empty( $tax_rates ) ) {
+                        $base_tax_amount = $base_price - ($base_price / 1.125);
+                    } else {
+                        $taxes = WC_Tax::calc_inclusive_tax( $base_price, $tax_rates );
+                        $base_tax_amount = array_sum( $taxes );
+                    }
+                }
+                
+                // For a customer to pay exactly $15.22, we subtract the EXACT Pre-Tax value of the Base Box!
+                $discount_amount = $base_price - $base_tax_amount; // e.g. 92.00 - 10.22 = 81.78
+
+                // ==============================================================
+                // BUILD THE SINGLE GROUPED LABEL
+                // Clearly explains the math. As a single fee, it will always be visually at the TOP.
+                // ==============================================================
+                $reward_label = 'Loyalty Reward: ' . $product_obj->get_name();
+                
                 if ( $customer_pays_tax ) {
-                    
-                    // --- RULE ON: CUSTOMER PAYS TAX ---
-                    // We must deduct exactly $81.77. We calculate this by pulling your 12.5% rate directly from the database.
-                    if ( wc_prices_include_tax() ) {
-                        global $wpdb;
-                        $tax_class = sanitize_title( $product_obj->get_tax_class() );
-                        
-                        // Query the database directly, bypassing WooCommerce's shipping glitch
-                        $tax_rate = (float) $wpdb->get_var( $wpdb->prepare( "SELECT tax_rate FROM {$wpdb->prefix}woocommerce_tax_rates WHERE tax_rate_class = %s LIMIT 1", $tax_class ) );
-                        
-                        if ( $tax_rate <= 0 ) {
-                            // Guaranteed Fallback: Grabs the highest tax rate in your DB (12.5000)
-                            $tax_rate = (float) $wpdb->get_var( "SELECT MAX(tax_rate) FROM {$wpdb->prefix}woocommerce_tax_rates" );
-                        }
-                        
-                        if ( $tax_rate > 0 ) {
-                            // The math: 92.00 / 1.125 = 81.7777
-                            $discount_amount = $full_price / ( 1 + ( $tax_rate / 100 ) );
-                        }
+                    // Explain that they are paying the Tax and Upgrade
+                    $reward_label .= ' (Base Value -' . wc_price($base_price) . ' | Customer Pays ' . wc_price($base_tax_amount) . ' Tax';
+                    if ($base_only && $upgrade_cost > 0 && !empty($upgrade_names)) {
+                        $reward_label .= ' & ' . wc_price($upgrade_cost) . ' Upgrade: ' . implode(', ', $upgrade_names);
+                    }
+                    $reward_label .= ')';
+
+                    // ADD THE SINGLE NON-TAXABLE FEE
+                    // Because it is non-taxable, WooCommerce natively records the full $10.78 
+                    // directly into your Tax Bucket for perfect accounting reports!
+                    $cart->add_fee( $reward_label, -round($discount_amount, 4), false, '' );
+
+                } else {
+                    // Explain that it is 100% Free, but they are paying for the Upgrade
+                    if ($base_only && $upgrade_cost > 0 && !empty($upgrade_names)) {
+                        $reward_label .= ' (Customer Pays ' . wc_price($upgrade_cost) . ' Upgrade: ' . implode(', ', $upgrade_names) . ')';
                     }
                     
-                    // We pass FALSE so WooCommerce does not tax our -$81.77. The $10.23 tax remains in the cart.
-                    $is_taxable = false; 
-                    
-                } else {
-                    
-                    // --- RULE OFF: 100% FREE ---
-                    // This is the EXACT original working code you verified. Do not touch.
-                    $discount_amount = $full_price;
-                    $is_taxable = !wc_prices_include_tax(); 
-                    
-                }
-
-                // 3. APPLY THE FEE
-                if ( $discount_amount > 0 ) {
-                    $fee_label = 'Reward: ' . $product_obj->get_name();
-                    if ($base_only && !$customer_pays_tax) $fee_label .= ' (Base Price)';
-                    elseif (!$base_only && $customer_pays_tax) $fee_label .= ' (Excl. Tax)';
-                    elseif ($base_only && $customer_pays_tax) $fee_label .= ' (Base Price, Excl. Tax)';
-
-                    // Pass an empty string '' to prevent Woo from forcing specific tax classes on it
-                    $cart->add_fee( $fee_label, -round($discount_amount, 4), $is_taxable, '' );
+                    // ADD THE SINGLE TAXABLE FEE
+                    // Passes as TAXABLE so Woo naturally zeroes out the native tax bucket for the free item.
+                    $cart->add_fee( $reward_label, -round($discount_amount, 4), true, $product_obj->get_tax_class() );
                 }
             }
         } else {
@@ -352,7 +408,7 @@ class MC_Points_Checkout {
                     $custom = get_option('mc_customization_settings', []);
                     $label = !empty($custom['lbl_btn_redeem']) ? $custom['lbl_btn_redeem'] : 'Points Discount';
                     if ( $discount > 0 ) {
-                        $cart->add_fee( $label, -round($discount, 2), false, '' );
+                        $cart->add_fee( $label, -round($discount, 2), false );
                     }
                 }
             }
@@ -450,10 +506,14 @@ class MC_Points_Checkout {
         $max_per_cart = get_option('mc_pts_prod_max_per_cart', '1');
         
         // Build Popup Disclaimer
-        $base_only = get_option('mc_pts_prod_base_price_only', 'yes') === 'yes';
-        $customer_pays_tax = get_option('mc_pts_prod_tax_override', 'yes') === 'yes';
+        $base_val = get_option('mc_pts_prod_base_price_only', 'yes');
+        $base_only = in_array( strtolower( (string) $base_val ), ['yes', 'on', '1', 'true'], true );
+
+        $tax_val = get_option('mc_pts_prod_tax_override', 'yes');
+        $customer_pays_tax = in_array( strtolower( (string) $tax_val ), ['yes', 'on', '1', 'true'], true );
+        
         $disclaimers = [];
-        if ($base_only) $disclaimers[] = 'premium add-ons';
+        if ($base_only) $disclaimers[] = 'premium upgrades';
         if ($customer_pays_tax) $disclaimers[] = 'taxes';
         $disclaimer_html = '';
         if (!empty($disclaimers)) {
