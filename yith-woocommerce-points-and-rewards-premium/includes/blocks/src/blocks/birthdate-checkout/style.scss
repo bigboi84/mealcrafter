@@ -1,0 +1,33 @@
+.wp-block-ywpar-birthdate-block .wc-block-components-text-input {
+	.ywpar_birthdate_field label {
+		transform: none !important;
+		position: relative;
+		margin-left: 0;
+		font-size: 14px;
+	}
+	
+	.ywpar_birthdate_field > div {
+		display: flex;
+		flex-direction: column;
+	}
+
+	.ywpar_date_selector_popup { 
+		display: none;
+		margin-top: 10px;
+	}
+
+	.ywpar_date_selector_popup_opened { display: block;}
+}
+
+.wp-block-ywpar-birthdate-block {
+	.has-error {
+		.yithUI-Input__root {
+			.yithUI-Input__backdrop {
+				border-color: #cc1818;
+			}
+			input {
+				color: #cc1818 !important;
+			}
+		}
+	}
+}
