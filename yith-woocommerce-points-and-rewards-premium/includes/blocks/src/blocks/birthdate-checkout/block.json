@@ -1,0 +1,35 @@
+{
+	"apiVersion": 2,
+	"name": "ywpar/birthdate-block",
+	"version": "2.0.0",
+	"title": "Date of Birth",
+	"category": "yith-blocks",
+	"description": "Add a Date of Birth field in checkout",
+	"supports": {
+		"html": false,
+		"align": false,
+		"multiple": false,
+		"reusable": false,
+		"className": true
+	},
+	"parent": [ "woocommerce/checkout-fields-block" ],
+	"attributes":{
+		"lock": {
+			"type": "object",
+			"default": {
+				"remove": false,
+				"move": false
+			}
+		},
+		"title": {
+			"type": "string",
+			"default": "Date of Birth",
+			"selector": ".wp-block-ywpar-birthdate-title"
+		  },
+		"showStepNumber": {
+			"type": "boolean",
+			"default": true
+		}
+	},
+	"textdomain": "yith-woocommerce-points-and-rewards"
+}
