@@ -1,7 +1,7 @@
 <?php
 /**
  * MealCrafter: Server-Side Combo Security, Math Engine, & Cart UI
- * Fix: Smart Math Meta Display, Saves Raw Data, & Clean Email Formatting
+ * Fix: Native Product Subtotals + Smart Cart Row Handling
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;
@@ -11,34 +11,74 @@ class MC_Combo_Cart_Security {
     public function __construct() {
         add_filter( 'woocommerce_add_to_cart_validation', [ $this, 'validate_combo_integrity' ], 10, 3 );
         add_filter( 'woocommerce_add_cart_item_data', [ $this, 'attach_combo_data' ], 10, 3 );
+        
+        // Hooks into the native price calculator instead of using glitchy cart fees
         add_action( 'woocommerce_before_calculate_totals', [ $this, 'calculate_secure_price' ], 20, 1 );
+
         add_filter( 'woocommerce_cart_item_name', [ $this, 'display_combo_in_cart' ], 10, 3 );
         add_action( 'woocommerce_add_to_cart', [ $this, 'remove_old_edited_cart_item' ], 10, 6 );
         add_filter( 'woocommerce_cart_item_price', [ $this, 'hide_combo_unit_price' ], 10, 3 );
         add_filter( 'woocommerce_cart_item_class', [ $this, 'add_combo_row_class' ], 10, 3 );
         
-        // CSS Injections for Hover Images on Frontend
         add_action( 'wp_head', [ $this, 'inject_cart_styles' ] );
         add_action( 'admin_head', [ $this, 'inject_cart_styles' ] ); 
         
-        // Save to Database
         add_action( 'woocommerce_checkout_create_order_line_item', [ $this, 'save_combo_order_meta' ], 10, 4 );
 
-        // THE FIX: Clean up WooCommerce Emails (Show Main Image, Hide Inline Hover Images)
         add_filter('woocommerce_email_styles', [$this, 'fix_combo_email_image_sizes'], 10, 2);
         add_filter('woocommerce_email_order_items_args', [$this, 'force_main_product_image_in_emails']);
     }
 
+    public function calculate_secure_price( $cart ) {
+        if ( is_admin() && ! defined( 'DOING_AJAX' ) ) return;
+
+        $math_logic = get_option( 'mc_combo_math_logic', 'on' );
+
+        foreach ( $cart->get_cart() as $cart_item ) {
+            if ( isset( $cart_item['mc_combo_selections'] ) && $cart_item['data']->get_type() === 'mc_combo' ) {
+                
+                // Fetch raw DB price to prevent compounding loops
+                $product = wc_get_product( $cart_item['product_id'] );
+                if ( ! $product ) continue;
+                $base_price = (float) $product->get_price();
+                
+                $highest_extra = 0;
+                $all_extras = 0;
+
+                foreach ( $cart_item['mc_combo_selections'] as $sel ) {
+                    $id = is_array($sel) ? $sel['id'] : $sel;
+                    $p = wc_get_product( $id );
+                    if ( $p ) {
+                        $price = (float) $p->get_price();
+                        if ( $price > 0 ) {
+                            if ( $math_logic === 'on' ) {
+                                if ( $price > $highest_extra ) {
+                                    $highest_extra = $price;
+                                }
+                            } else {
+                                $all_extras += $price;
+                            }
+                        }
+                    }
+                }
+
+                // Add the upgrade perfectly to the product so it triggers the correct Native Subtotal
+                if ( $math_logic === 'on' ) {
+                    $cart_item['data']->set_price( $base_price + $highest_extra );
+                } else {
+                    $cart_item['data']->set_price( $base_price + $all_extras );
+                }
+            }
+        }
+    }
+
     public function force_main_product_image_in_emails( $args ) {
-        // Forces WooCommerce to show the Main Product Image (e.g. The Coke Bottle) in emails
         $args['show_image'] = true;
         $args['image_size'] = [ 60, 60 ];
         return $args;
     }
 
     public function fix_combo_email_image_sizes($css, $email) {
-        // Hides the inline sub-item images ONLY in emails, converting it back to clean text.
-        // The Store Manager dashboard will still have the hovers!
         $css .= '
             .mc-combo-hover-item { text-decoration: none !important; color: #555 !important; border: none !important; font-weight: normal !important; pointer-events: none !important; }
             .mc-combo-hover-img { display: none !important; }
@@ -94,7 +134,16 @@ class MC_Combo_Cart_Security {
             }
         }
 
-        $formatted_name = '<span style="font-weight:900; color:#222;">(' . $qty . ')</span> ' . $item_name;
+        $redeemed_key = WC()->session->get('mc_redeemed_cart_item');
+        $is_redeemed = ( $redeemed_key === $cart_item_key );
+
+        // If Redeemed, strip the (1) wrapper so the Loyalty Plugin's custom box renders cleanly!
+        if ( $is_redeemed ) {
+            $formatted_name = $item_name;
+        } else {
+            $formatted_name = '<span style="font-weight:900; color:#222;">(' . $qty . ')</span> ' . $item_name;
+        }
+        
         $short_desc = $product->get_short_description();
         $product_url= $product->get_permalink();
         $edit_url   = add_query_arg( 'edit_combo', $cart_item_key, $product_url );
@@ -166,30 +215,6 @@ class MC_Combo_Cart_Security {
     public function attach_combo_data( $cart_item_data, $product_id, $variation_id ) {
         if ( isset( $_POST['mc_combo_items'] ) ) { $cart_item_data['mc_combo_selections'] = $_POST['mc_combo_items']; }
         return $cart_item_data;
-    }
-
-    public function calculate_secure_price( $cart ) {
-        if ( is_admin() && ! defined( 'DOING_AJAX' ) ) return;
-        $math_logic = get_option( 'mc_combo_math_logic', 'on' );
-
-        foreach ( $cart->get_cart() as $cart_item_key => $cart_item ) {
-            if ( isset( $cart_item['mc_combo_selections'] ) && $cart_item['data']->get_type() === 'mc_combo' ) {
-                $base_price = (float) $cart_item['data']->get_regular_price();
-                $highest_extra = 0;
-
-                if ( $math_logic === 'on' ) {
-                    foreach ( $cart_item['mc_combo_selections'] as $sel ) {
-                        $id = is_array($sel) ? $sel['id'] : $sel;
-                        $p = wc_get_product( $id );
-                        if ( $p && (float) $p->get_price() > $highest_extra ) {
-                            $highest_extra = (float) $p->get_price();
-                        }
-                    }
-                    $final_price = $base_price + $highest_extra;
-                } else { $final_price = $base_price; }
-                $cart_item['data']->set_price( $final_price );
-            }
-        }
     }
 
     public function remove_old_edited_cart_item( $cart_item_key, $product_id, $quantity, $variation_id, $variation, $cart_item_data ) {
