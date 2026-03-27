@@ -70,7 +70,8 @@ $core_files = [
     'class-mc-points-admin.php',
     'class-mc-points-earning.php',
     'class-mc-points-checkout.php',
-    'class-mc-points-account.php'
+    'class-mc-points-account.php',
+    'class-mc-points-expiration.php'
 ];
 foreach ( $core_files as $file ) {
     if ( file_exists( MC_LOYALTY_PATH . 'includes/' . $file ) ) { require_once MC_LOYALTY_PATH . 'includes/' . $file; }
