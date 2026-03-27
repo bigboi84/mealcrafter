@@ -63,37 +63,13 @@
                     <span class="mc-form-label" style="color:#2271b1;">Limit Redemption to Base Price Only</span>
                     <span class="mc-form-desc">
                         <strong>Crucial for Variable / Combo / Grouped products.</strong><br> 
-                        If enabled, the points only cover the base price of the item. The customer must pay cash for any premium add-ons (e.g., extra cheese, upgrading to premium sides). If disabled, the entire configured item becomes free.
+                        If enabled, the points only cover the base price of the item. The customer must pay cash for any premium add-ons (e.g., upgrading to a premium side). If disabled, the entire configured item becomes completely free.
                     </span>
                 </div>
                 <label class="mc-toggle-switch">
                     <input type="checkbox" name="mc_pts_prod_base_price_only" value="yes" <?php checked(get_option('mc_pts_prod_base_price_only', 'yes'), 'yes'); ?>>
                     <span class="mc-slider"></span>
                 </label>
-            </div>
-
-            <div class="mc-toggle-row" style="border-bottom:none;">
-                <div class="mc-form-info" style="margin:0;">
-                    <span class="mc-form-label">Customer Must Pay Taxes</span>
-                    <span class="mc-form-desc">If enabled, the 100% discount applies to the subtotal, but standard taxes are still calculated and charged at checkout.</span>
-                </div>
-                <label class="mc-toggle-switch">
-                    <input type="checkbox" name="mc_pts_prod_tax_override" value="yes" <?php checked(get_option('mc_pts_prod_tax_override', 'yes'), 'yes'); ?>>
-                    <span class="mc-slider"></span>
-                </label>
-            </div>
-
-            <div class="mc-form-row" style="margin-top:10px; background:#f9f9f9; padding:15px; border-radius:8px; border:1px solid #eee;">
-                <div class="mc-form-info">
-                    <span class="mc-form-label">Store Tax Configuration</span>
-                    <span class="mc-form-desc">Tell the plugin how your website handles taxes to ensure reward math is 100% accurate when "Customer Must Pay Taxes" is ON.</span>
-                </div>
-                <div class="mc-form-control">
-                    <select name="mc_pts_prod_tax_mode" style="width:100%; max-width:400px;">
-                        <option value="inclusive" <?php selected(get_option('mc_pts_prod_tax_mode', 'inclusive'), 'inclusive'); ?>>Prices INCLUDE tax (Standard)</option>
-                        <option value="exclusive" <?php selected(get_option('mc_pts_prod_tax_mode', 'inclusive'), 'exclusive'); ?>>Prices EXCLUDE tax (Added at checkout)</option>
-                    </select>
-                </div>
             </div>
 
         </div>
