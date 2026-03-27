@@ -64,32 +64,31 @@
     </div>
 
     <div class="mc-form-section" id="mc-calculation-rules">
-        <div class="mc-form-row">
+        <h3 style="margin-top:0; border-bottom:1px solid #eee; padding-bottom:10px; margin-bottom:20px;">Calculation & Total Rules</h3>
+        
+        <div class="mc-form-row" style="margin-bottom: 25px;">
             <div class="mc-form-info">
-                <span class="mc-form-label">Calculate points considering:</span>
-                <span class="mc-form-desc">Choose whether to calculate points considering unit prices or product subtotal.</span>
+                <span class="mc-form-label" style="font-weight: bold; display: block; margin-bottom: 5px;">Points Calculation Method</span>
+                <span class="mc-form-desc" style="color: #666; font-size: 13px; display: block; margin-bottom: 8px;">Select the mathematical basis for awarding points on customer orders.</span>
             </div>
-            <div class="mc-form-control mc-radio-group">
-                <?php $calc_basis = get_option('mc_pts_calc_basis', 'subtotal'); ?>
-                <label><input type="radio" name="mc_pts_calc_basis" value="unit" <?php checked($calc_basis, 'unit'); ?>> Unit price</label>
-                <label><input type="radio" name="mc_pts_calc_basis" value="subtotal" <?php checked($calc_basis, 'subtotal'); ?>> Product subtotal</label>
-                
-                <div style="background:#f1f5f9; padding:15px; border-radius:6px; margin-top:10px; font-size:13px; color:#475569; border-left:3px solid #007cba;">
-                    <strong>Example:</strong> A rule gives 1 point for every $10 spent. If a customer adds 10 products priced at $8 each to their cart:<br><br>
-                    - Calculating points on the <strong>unit price</strong> won't award any points (since $8 is less than the $10 requirement).<br>
-                    - Calculating points on the <strong>product subtotal</strong> will award 8 points (since $80 total / 10).
-                </div>
-            </div>
-        </div>
+            <div class="mc-form-control">
+                <?php $earn_basis = get_option('mc_earn_basis', 'subtotal_pre'); ?>
+                <select name="mc_earn_basis" style="width:100%; max-width: 500px; padding: 8px; border-radius: 4px; border: 1px solid #8c8f94; font-weight: bold;">
+                    <option value="unit_pre" <?php selected($earn_basis, 'unit_pre'); ?>>Unit Price (Pre-Tax) - Calculated per individual item</option>
+                    <option value="subtotal_pre" <?php selected($earn_basis, 'subtotal_pre'); ?>>Product Subtotal (Pre-Tax) - Calculated on item lines</option>
+                    <option value="subtotal_post" <?php selected($earn_basis, 'subtotal_post'); ?>>Product Subtotal (Post-Tax) - Includes item taxes</option>
+                    <option value="grand_total" <?php selected($earn_basis, 'grand_total'); ?>>Cart Grand Total - Includes shipping, fees, and taxes</option>
+                </select>
 
-        <div class="mc-form-row">
-            <div class="mc-form-info">
-                <span class="mc-form-label">Calculate points considering product price with:</span>
-            </div>
-            <div class="mc-form-control mc-radio-group">
-                <?php $tax_incl = get_option('mc_pts_tax_incl', 'exc'); ?>
-                <label><input type="radio" name="mc_pts_tax_incl" value="inc" <?php checked($tax_incl, 'inc'); ?>> Taxes included</label>
-                <label><input type="radio" name="mc_pts_tax_incl" value="exc" <?php checked($tax_incl, 'exc'); ?>> Taxes excluded</label>
+                <div style="background:#f1f5f9; padding:15px; border-radius:6px; margin-top:15px; font-size:13px; color:#475569; border-left:3px solid #007cba;">
+                    <strong style="display:block; margin-bottom: 8px; color: #111;">Example Scenarios:</strong> 
+                    If a rule gives 1 point for every $10 spent, and a customer adds <strong>10 products priced at $8 each ($80 total)</strong> to their cart:<br><br>
+                    <ul style="margin: 0; padding-left: 20px; line-height: 1.6;">
+                        <li><strong>Unit Price:</strong> Won't award any points. ($8 is less than the $10 minimum threshold).</li>
+                        <li><strong>Product Subtotal:</strong> Will award 8 points. ($80 line total / 10).</li>
+                        <li><strong>Grand Total:</strong> If shipping is $20, it will award 10 points. ($100 final bill / 10).</li>
+                    </ul>
+                </div>
             </div>
         </div>
 
@@ -111,24 +110,27 @@
 
     <div class="mc-form-section" id="mc-exclusion-rules">
         <h3>Points removal and exclusion</h3>
-        <div class="mc-form-row">
+        
+        <div class="mc-form-row" style="background:#fef8ee; padding:15px; border-left:3px solid #f39c12; border-radius:4px; margin-bottom:25px;">
             <div class="mc-form-info">
-                <span class="mc-form-label">Assign points when the order has status</span>
+                <span class="mc-form-label" style="margin-bottom: 8px;">Assign points when the order has status:</span>
             </div>
             <div class="mc-form-control">
                 <?php $statuses = wc_get_order_statuses(); ?>
-                <select name="mc_pts_order_status[]" class="wc-enhanced-select" multiple="multiple" style="width:100%;">
+                <select name="mc_pts_order_status[]" class="wc-enhanced-select" multiple="multiple" style="width:100%; max-width: 600px;">
                     <?php $selected_statuses = get_option('mc_pts_order_status', ['wc-completed']); ?>
                     <?php foreach($statuses as $key => $status): ?>
                         <option value="<?php echo esc_attr($key); ?>" <?php echo in_array($key, (array)$selected_statuses) ? 'selected' : ''; ?>><?php echo esc_html($status); ?></option>
                     <?php endforeach; ?>
                 </select>
+                <p style="font-size:12px; color:#666; margin-top:6px;">Select all order statuses that should trigger point awarding.</p>
             </div>
         </div>
 
         <div class="mc-toggle-row">
             <div class="mc-form-info" style="margin:0;">
                 <span class="mc-form-label">Exclude on-sale products from points collection</span>
+                <span class="mc-form-desc">If enabled, products with an active sale price will yield 0 points.</span>
             </div>
             <label class="mc-toggle-switch"><input type="checkbox" name="mc_pts_exclude_sale" value="yes" <?php checked(get_option('mc_pts_exclude_sale', 'no'), 'yes'); ?>><span class="mc-slider"></span></label>
         </div>
@@ -142,13 +144,6 @@
 
         <div class="mc-toggle-row">
             <div class="mc-form-info" style="margin:0;">
-                <span class="mc-form-label">Reassign points when an order is refunded</span>
-            </div>
-            <label class="mc-toggle-switch"><input type="checkbox" name="mc_pts_reassign_refunded" value="yes" <?php checked(get_option('mc_pts_reassign_refunded', 'no'), 'yes'); ?>><span class="mc-slider"></span></label>
-        </div>
-
-        <div class="mc-toggle-row">
-            <div class="mc-form-info" style="margin:0;">
                 <span class="mc-form-label">Remove earned points if order is refunded</span>
             </div>
             <label class="mc-toggle-switch"><input type="checkbox" name="mc_pts_remove_refunded" value="yes" <?php checked(get_option('mc_pts_remove_refunded', 'yes'), 'yes'); ?>><span class="mc-slider"></span></label>
@@ -156,17 +151,18 @@
 
         <div class="mc-toggle-row">
             <div class="mc-form-info" style="margin:0;">
-                <span class="mc-form-label">Do not assign points to the full order amount if a coupon is used</span>
-                <span class="mc-form-desc">Users earn points only on the amount minus the coupon discount.</span>
+                <span class="mc-form-label">Reassign spent points when an order is refunded</span>
+                <span class="mc-form-desc">If a customer used points to get a discount, refunding the order returns those points to their account.</span>
             </div>
-            <label class="mc-toggle-switch"><input type="checkbox" name="mc_pts_exclude_coupons" value="yes" <?php checked(get_option('mc_pts_exclude_coupons', 'yes'), 'yes'); ?>><span class="mc-slider"></span></label>
+            <label class="mc-toggle-switch"><input type="checkbox" name="mc_pts_reassign_refunded" value="yes" <?php checked(get_option('mc_pts_reassign_refunded', 'no'), 'yes'); ?>><span class="mc-slider"></span></label>
         </div>
 
         <div class="mc-toggle-row">
-            <div class="mc-form-info" style="margin:0;">
-                <span class="mc-form-label">Do not assign points to orders in which the user is redeeming points</span>
+            <div class="mc-form-info" style="margin:0; max-width: 80%;">
+                <span class="mc-form-label">Do not assign points to the full order amount if a coupon is used</span>
+                <span class="mc-form-desc">Users earn points only on the amount minus the coupon discount. If off, they earn points on the full original value.</span>
             </div>
-            <label class="mc-toggle-switch"><input type="checkbox" name="mc_pts_disable_earn_on_redeem" value="yes" <?php checked(get_option('mc_pts_disable_earn_on_redeem', 'yes'), 'yes'); ?>><span class="mc-slider"></span></label>
+            <label class="mc-toggle-switch"><input type="checkbox" name="mc_pts_exclude_coupons" value="yes" <?php checked(get_option('mc_pts_exclude_coupons', 'yes'), 'yes'); ?>><span class="mc-slider"></span></label>
         </div>
     </div>
 
@@ -183,11 +179,12 @@
         <div class="mc-form-row">
             <div class="mc-form-info">
                 <span class="mc-form-label">Points rounding</span>
+                <span class="mc-form-desc">Choose how fractions of points are handled.</span>
             </div>
             <div class="mc-form-control mc-radio-group">
                 <?php $rounding = get_option('mc_pts_rounding', 'down'); ?>
-                <label><input type="radio" name="mc_pts_rounding" value="up" <?php checked($rounding, 'up'); ?>> Round Up</label>
-                <label><input type="radio" name="mc_pts_rounding" value="down" <?php checked($rounding, 'down'); ?>> Round Down</label>
+                <label><input type="radio" name="mc_pts_rounding" value="up" <?php checked($rounding, 'up'); ?>> Round Up (Ceiling)</label>
+                <label><input type="radio" name="mc_pts_rounding" value="down" <?php checked($rounding, 'down'); ?>> Round Down (Floor)</label>
             </div>
         </div>
 
