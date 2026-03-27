@@ -1,7 +1,7 @@
 <?php
 /**
  * MealCrafter: Premium Combo Builder Frontend Engine
- * Fix: Restored Fixed Bottom Bar & Added Shrinking Summary Box on Scroll
+ * Fix: Restored Fixed Bottom Bar & Added Custom Badge Injection
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;
@@ -42,6 +42,26 @@ function mc_display_combo_builder() {
     $base_price   = (float)$product->get_price();
     $combo_title  = strtoupper($product->get_name());
 
+    // LOYALTY PLUGIN SYNC: Get Cost & Custom Badge Settings
+    $point_cost = false;
+    $badge_html = '';
+    if ( class_exists('MC_Points_Account') && method_exists('MC_Points_Account', 'get_product_point_cost') ) {
+        $point_cost = MC_Points_Account::get_product_point_cost($product);
+        if ($point_cost !== false && $point_cost > 0) {
+            $cat_settings = get_option('mc_pts_catalog_settings', []);
+            $bg = $cat_settings['badge_bg'] ?? '#fef8ee';
+            $border = $cat_settings['badge_border'] ?? '#f6c064';
+            $color = $cat_settings['badge_text_color'] ?? '#d35400';
+            $icon = $cat_settings['badge_icon'] ?? '🎁';
+            $format = $cat_settings['badge_format'] ?? '{icon} Redeem for {points} Pts';
+
+            $icon_html = (strpos($icon, 'http') === 0) ? '<img src="'.esc_url($icon).'" style="width:16px; height:16px; vertical-align:middle; margin-right:6px; border-radius:4px;">' : '<span style="margin-right:6px;">'.esc_html($icon).'</span>';
+            $final_text = str_replace(['{icon}', '{points}'], [$icon_html, number_format($point_cost)], $format);
+
+            $badge_html = '<span style="font-size:13px; background:'.esc_attr($bg).'; border:1px solid '.esc_attr($border).'; color:'.esc_attr($color).'; padding:4px 12px; border-radius:20px; margin-left:15px; vertical-align:middle; display:inline-flex; align-items:center; font-weight:800;">' . wp_kses_post($final_text) . '</span>';
+        }
+    }
+
     $grid_css = 'repeat(auto-fill, minmax(220px, 1fr))';
     if ( is_numeric($grid_cols) ) $grid_css = 'repeat(' . intval($grid_cols) . ', 1fr)';
 
@@ -78,7 +98,6 @@ function mc_display_combo_builder() {
         .mc-top-price-pill { font-size: 16px; font-weight: 800; color: var(--mc-text-muted, #555); background: var(--mc-bg-alt, #f8f9fa); padding: 8px 25px; border-radius: 50px; border: 1px solid var(--mc-border-color, #eee); display: inline-block; text-align: center; transition: all 0.3s ease-in-out; }
         .mc-top-price-pill span { font-size: 18px; font-weight: 900; color: var(--mc-text-main, #333); transition: all 0.3s ease-in-out; }
 
-        /* --- SHRINKING SCROLL CSS --- */
         .mc-top-summary-box.mc-scrolled { padding: 15px 25px; flex-direction: row; justify-content: space-between; border-radius: 50px; }
         .mc-top-summary-box.mc-scrolled .mc-summary-slot { width: 45px; height: 45px; font-size: 18px; border-radius: 8px; }
         .mc-top-summary-box.mc-scrolled .mc-top-price-pill { font-size: 14px; padding: 6px 15px; }
@@ -110,9 +129,8 @@ function mc_display_combo_builder() {
         .mc-pill-minus { margin-right: 8px; font-size: 18px; line-height: 1; display: inline-block; }
         .mc-step-container.mc-collapsed .mc-combo-card:not(.has-qty) { display: none; }
 
-        /* THE FIX: Reverted back to Fixed Bottom */
         .mc-bottom-sticky-bar { position: fixed; bottom: 0; left: 0; width: 100%; background: var(--mc-bg-card, #fff); padding: 20px 40px; box-shadow: 0 -5px 30px rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center; z-index: 9999; border-top: 1px solid var(--mc-border-color, #eee); box-sizing: border-box; }
-        .mc-bb-title { font-weight: 900; font-size: 20px; color: var(--mc-text-main, #222); }
+        .mc-bb-title { font-weight: 900; font-size: 20px; color: var(--mc-text-main, #222); display: flex; align-items: center; gap: 15px; }
         .mc-bb-actions { display: flex; align-items: center; gap: 20px; }
         .mc-combo-qty-picker { display: flex; align-items: center; gap: 15px; background: var(--mc-bg-alt, #f5f5f5); padding: 8px 20px; border-radius: 50px; font-weight: 900; font-size: 18px; color: var(--mc-text-main, #333); }
         .mc-qty-btn { cursor: pointer; font-size: 22px; color: var(--mc-text-muted, #555); user-select: none; }
@@ -236,7 +254,11 @@ function mc_display_combo_builder() {
         </div>
 
         <div class="mc-bottom-sticky-bar">
-            <div class="mc-bb-title"><?php echo esc_html($combo_title); ?></div>
+            <div class="mc-bb-title">
+                <?php echo esc_html($combo_title); ?>
+                <?php echo $badge_html; ?>
+            </div>
+            
             <div class="mc-bb-actions">
                 <div class="mc-combo-qty-picker"><span class="mc-qty-btn" id="mc-global-minus">−</span><span id="mc-global-qty">1</span><span class="mc-qty-btn" id="mc-global-plus">+</span></div>
                 <button id="mc-submit-combo" class="mc-submit-btn"><?php echo esc_html($cart_text); ?> $<span id="mc-btn-price"><?php echo number_format($base_price, 2); ?></span></button>
@@ -252,16 +274,11 @@ function mc_display_combo_builder() {
         let globalQty = 1;
         window.mcFirstMissingStep = null; 
 
-        // THE FIX: Scroll Listener to shrink the Summary Box
         <?php if ($summary_sticky === 'on') : ?>
         $(window).on('scroll', function() {
-            if ($(this).scrollTop() > 80) {
-                $('#mc-summary-box').addClass('mc-scrolled');
-            } else {
-                $('#mc-summary-box').removeClass('mc-scrolled');
-            }
+            if ($(this).scrollTop() > 80) { $('#mc-summary-box').addClass('mc-scrolled'); } 
+            else { $('#mc-summary-box').removeClass('mc-scrolled'); }
         });
-        // Also trigger on modal scroll if inside the Dashboard Popup
         $('#mc-combo-build-content').on('scroll', function() {
             if ($(this).scrollTop() > 80) { $('#mc-summary-box').addClass('mc-scrolled'); } 
             else { $('#mc-summary-box').removeClass('mc-scrolled'); }
