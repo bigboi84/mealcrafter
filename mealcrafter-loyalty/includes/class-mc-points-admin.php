@@ -23,6 +23,9 @@ class MC_Points_Admin {
     }
 
     public function register_global_settings() {
+        // --- NEW OPTION FOR CALCULATION BASIS ---
+        register_setting('mc_loyalty_options_group', 'mc_earn_basis'); 
+
         register_setting('mc_loyalty_options_group', 'mc_pts_assign_type');
         register_setting('mc_loyalty_options_group', 'mc_pts_assign_roles');
         register_setting('mc_loyalty_options_group', 'mc_pts_specific_roles'); 
@@ -290,7 +293,7 @@ class MC_Points_Admin {
                 case 'catalog':
                     if (class_exists('MC_Tab_Catalog')) { $tab_module = new MC_Tab_Catalog(); $tab_module->render(); }
                     break;
-                case 'customization': // <--- THIS IS THE FIX right here!
+                case 'customization':
                     if (class_exists('MC_Tab_Customization')) { $tab_module = new MC_Tab_Customization(); $tab_module->render(); }
                     break;
                 default:
