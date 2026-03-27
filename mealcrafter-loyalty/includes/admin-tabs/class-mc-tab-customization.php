@@ -20,7 +20,6 @@ class MC_Tab_Customization {
         $settings = get_option('mc_customization_settings', []);
         $current_sub = isset($_GET['sub']) ? sanitize_text_field($_GET['sub']) : 'general';
         
-        // ADDED: The new Checkout UI & Popups Sub-Tab
         $subtabs = [
             'general'       => 'General',
             'shop'          => 'Points in Shop Pages',
@@ -29,6 +28,8 @@ class MC_Tab_Customization {
             'cart_checkout' => 'Points in Cart & Checkout',
             'checkout_ui'   => 'Checkout UI & Popups', 
             'giveaways'     => 'Auto-Giveaways UI',
+            'reward_design' => 'Reward Cart Design', 
+            'earning_auto'  => 'Auto Earning Displays', 
             'labels'        => 'Labels'
         ];
 
@@ -308,170 +309,150 @@ class MC_Tab_Customization {
 
                     <?php 
                     // ==========================================
-                    // CART & CHECKOUT TAB
+                    // AUTO EARNING DISPLAYS (NEW TAB!)
                     // ==========================================
-                    elseif ($current_sub === 'cart_checkout'): 
-                        $cart_show = $settings['cart_show'] ?? 'yes';
-                        $cart_msg = $settings['cart_msg'] ?? 'Complete this order to earn {points} {points_label}!';
-                        $checkout_show = $settings['checkout_show'] ?? 'yes';
-                        $checkout_msg = $settings['checkout_msg'] ?? 'Complete this order to earn {points} {points_label}!';
+                    elseif ($current_sub === 'earning_auto'): 
+                        $earn_show_single = $settings['earn_show_single'] ?? 'yes';
+                        $earn_show_combo = $settings['earn_show_combo'] ?? 'yes';
+                        $earn_show_grouped = $settings['earn_show_grouped'] ?? 'yes';
+                        $earn_show_cart = $settings['earn_show_cart'] ?? 'yes';
+                        $earn_show_checkout = $settings['earn_show_checkout'] ?? 'yes';
+                        
+                        $earn_msg_product = $settings['earn_msg_product'] ?? 'Earn {points} Points!';
+                        $earn_msg_cart = $settings['earn_msg_cart'] ?? 'Complete this order to earn {points} Points!';
+                        $earn_msg_checkout = $settings['earn_msg_checkout'] ?? 'Earn {points} Points!';
+                        
+                        $earn_color = $settings['earn_color'] ?? '#2ecc71';
                     ?>
-                        <div class="mc-rule-card" style="padding:25px; border-left:4px solid #e74c3c;">
+                        <div class="mc-rule-card" style="padding:25px; border-left:4px solid #f1c40f; margin-bottom:30px;">
+                            <h3 style="margin-top:0; border-bottom:1px solid #eee; padding-bottom:10px; margin-bottom:20px;">Auto Earning Displays</h3>
+                            <p style="margin-top:-10px; margin-bottom:20px; color:#666; font-size:13px;">Automatically inject earning messages into standard hooks without needing shortcodes.</p>
+
+                            <div class="mc-form-row" style="margin-bottom:20px;">
+                                <span class="mc-form-label">Earning Text Color</span>
+                                <span class="mc-form-desc">Color for the text displaying earned points.</span>
+                                <input type="color" name="mc_custom[earn_color]" value="<?php echo esc_attr($earn_color); ?>" class="mc-color-picker-small" style="margin-top: 8px;">
+                            </div>
+
+                            <h4 style="margin: 30px 0 15px 0; border-bottom: 1px solid #eee; padding-bottom: 10px;">Display Locations</h4>
+
                             <div class="mc-toggle-row" style="margin-bottom:15px;">
-                                <div class="mc-form-info"><span class="mc-form-label">Show points in Cart page</span></div>
-                                <label class="mc-toggle-switch"><input type="hidden" name="mc_custom[cart_show]" value="no"><input type="checkbox" name="mc_custom[cart_show]" value="yes" <?php checked($cart_show, 'yes'); ?>><span class="mc-slider"></span></label>
+                                <div class="mc-form-info"><span class="mc-form-label">Single Product Page</span><span class="mc-form-desc">Show under the Add to Cart button on standard products.</span></div>
+                                <label class="mc-toggle-switch"><input type="hidden" name="mc_custom[earn_show_single]" value="no"><input type="checkbox" name="mc_custom[earn_show_single]" value="yes" <?php checked($earn_show_single, 'yes'); ?>><span class="mc-slider"></span></label>
+                            </div>
+                            
+                            <div class="mc-toggle-row" style="margin-bottom:15px;">
+                                <div class="mc-form-info"><span class="mc-form-label">MealCrafter Combo</span><span class="mc-form-desc">Show next to the Add to Cart button on Combo products.</span></div>
+                                <label class="mc-toggle-switch"><input type="hidden" name="mc_custom[earn_show_combo]" value="no"><input type="checkbox" name="mc_custom[earn_show_combo]" value="yes" <?php checked($earn_show_combo, 'yes'); ?>><span class="mc-slider"></span></label>
+                            </div>
+
+                            <div class="mc-toggle-row" style="margin-bottom:15px;">
+                                <div class="mc-form-info"><span class="mc-form-label">MealCrafter Grouped</span><span class="mc-form-desc">Show when a grouped product modal/page appears.</span></div>
+                                <label class="mc-toggle-switch"><input type="hidden" name="mc_custom[earn_show_grouped]" value="no"><input type="checkbox" name="mc_custom[earn_show_grouped]" value="yes" <?php checked($earn_show_grouped, 'yes'); ?>><span class="mc-slider"></span></label>
+                            </div>
+
+                            <div class="mc-form-row" style="margin-bottom:30px;">
+                                <span class="mc-form-label">Product Page Text</span>
+                                <input type="text" name="mc_custom[earn_msg_product]" value="<?php echo esc_attr($earn_msg_product); ?>" style="width:100%; max-width: 500px;">
+                            </div>
+
+                            <div class="mc-toggle-row" style="margin-bottom:15px;">
+                                <div class="mc-form-info"><span class="mc-form-label">Cart Page</span><span class="mc-form-desc">Show below the cart totals.</span></div>
+                                <label class="mc-toggle-switch"><input type="hidden" name="mc_custom[earn_show_cart]" value="no"><input type="checkbox" name="mc_custom[earn_show_cart]" value="yes" <?php checked($earn_show_cart, 'yes'); ?>><span class="mc-slider"></span></label>
                             </div>
                             <div class="mc-form-row" style="margin-bottom:30px;">
-                                <span class="mc-form-label">Message text in cart</span>
-                                <?php wp_editor($cart_msg, 'mc_cart_msg_editor', ['textarea_name' => 'mc_custom[cart_msg]', 'textarea_rows' => 4, 'media_buttons' => false]); ?>
+                                <span class="mc-form-label">Cart Page Text</span>
+                                <input type="text" name="mc_custom[earn_msg_cart]" value="<?php echo esc_attr($earn_msg_cart); ?>" style="width:100%; max-width: 500px;">
                             </div>
 
-                            <div class="mc-toggle-row" style="margin-bottom:15px; border-top:1px solid #eee; padding-top:20px;">
-                                <div class="mc-form-info"><span class="mc-form-label">Show points in Checkout page</span></div>
-                                <label class="mc-toggle-switch"><input type="hidden" name="mc_custom[checkout_show]" value="no"><input type="checkbox" name="mc_custom[checkout_show]" value="yes" <?php checked($checkout_show, 'yes'); ?>><span class="mc-slider"></span></label>
+                            <div class="mc-toggle-row" style="margin-bottom:15px;">
+                                <div class="mc-form-info"><span class="mc-form-label">Checkout Page</span><span class="mc-form-desc">Show right after the total to pay.</span></div>
+                                <label class="mc-toggle-switch"><input type="hidden" name="mc_custom[earn_show_checkout]" value="no"><input type="checkbox" name="mc_custom[earn_show_checkout]" value="yes" <?php checked($earn_show_checkout, 'yes'); ?>><span class="mc-slider"></span></label>
                             </div>
-                            <div class="mc-form-row">
-                                <span class="mc-form-label">Message text in checkout</span>
-                                <?php wp_editor($checkout_msg, 'mc_check_msg_editor', ['textarea_name' => 'mc_custom[checkout_msg]', 'textarea_rows' => 4, 'media_buttons' => false]); ?>
+                            <div class="mc-form-row" style="margin-bottom:30px;">
+                                <span class="mc-form-label">Checkout Page Text</span>
+                                <input type="text" name="mc_custom[earn_msg_checkout]" value="<?php echo esc_attr($earn_msg_checkout); ?>" style="width:100%; max-width: 500px;">
                             </div>
+
                         </div>
 
                     <?php 
                     // ==========================================
-                    // CHECKOUT UI & PRODUCT POPUPS (NEW!)
+                    // REWARD CART DESIGN TAB
                     // ==========================================
-                    elseif ($current_sub === 'checkout_ui'): 
-                        // Checkout Box UI
-                        $box_style = $settings['box_style'] ?? 'slider';
-                        $box_pos = $settings['box_pos'] ?? 'before_checkout_form';
-                        $box_title = $settings['box_title'] ?? 'Use your Loyalty Points';
-                        $box_bg = $settings['box_bg'] ?? '#fef8ee';
-                        $box_border = $settings['box_border'] ?? '#f6c064';
-                        $btn_bg = $settings['btn_bg'] ?? '#d35400';
-                        $btn_text = $settings['btn_text'] ?? '#ffffff';
+                    elseif ($current_sub === 'reward_design'): 
+                        $congrats = $settings['cart_ui_congrats'] ?? '🎉 Congratulations!';
+                        $free = $settings['cart_ui_free'] ?? 'FREE';
+                        $note = $settings['cart_ui_note'] ?? '* Note: Customer pays for premium upgrades.';
+                        $pts = $settings['cart_ui_pts_label'] ?? 'pts';
+                        $remove = $settings['cart_ui_remove'] ?? 'Remove Reward';
 
-                        // Product Popup UI
-                        $pop_enable = $settings['pop_enable'] ?? 'yes';
-                        $pop_title = $settings['pop_title'] ?? 'Unlock this Reward?';
-                        $pop_desc = $settings['pop_desc'] ?? 'Are you sure you want to spend {points} points to get this item for free?';
-                        $pop_btn_yes = $settings['pop_btn_yes'] ?? 'Yes, Unlock It!';
-                        $pop_btn_no = $settings['pop_btn_no'] ?? 'Not right now';
-                        $pop_success = $settings['pop_success'] ?? 'Reward successfully added to your cart!';
-                        
-                        $pop_bg = $settings['pop_bg'] ?? '#ffffff';
-                        $pop_btn_color = $settings['pop_btn_color'] ?? '#2ecc71';
-                        $pop_text_color = $settings['pop_text_color'] ?? '#111111';
+                        $border_style = $settings['cart_ui_border_style'] ?? 'dashed';
+                        $border_weight = $settings['cart_ui_border_weight'] ?? '2';
+                        $border_color = $settings['cart_ui_border_color'] ?? '#f6c064';
+                        $congrats_color = $settings['cart_ui_congrats_color'] ?? '#e67e22';
+                        $free_color = $settings['cart_ui_free_color'] ?? '#2ecc71';
+                        $note_color = $settings['cart_ui_note_color'] ?? '#d35400';
+                        $bg_color = $settings['cart_ui_bg_color'] ?? '#fdfbf7';
                     ?>
-                        <div class="mc-rule-card" style="padding:25px; border-left:4px solid #3498db; margin-bottom:30px;">
-                            <h3 style="margin-top:0; border-bottom:1px solid #eee; padding-bottom:10px; margin-bottom:20px;">"Pay with Points" Checkout Box Designer</h3>
-                            <p style="margin-top:-10px; margin-bottom:20px; color:#666; font-size:13px;">Design the box that appears on the Cart/Checkout pages allowing users to apply a points discount.</p>
+                        <div class="mc-rule-card" style="padding:25px; border-left:4px solid #e67e22; margin-bottom:30px;">
+                            <h3 style="margin-top:0; border-bottom:1px solid #eee; padding-bottom:10px; margin-bottom:20px;">Reward Cart Row Texts</h3>
+                            <p style="margin-top:-10px; margin-bottom:20px; color:#666; font-size:13px;">Edit the labels and warnings displayed inside the Cart table box when a user redeems a product.</p>
                             
-                            <div class="mc-form-row" style="display:flex; gap:20px; margin-bottom:20px;">
-                                <div style="flex:1;">
-                                    <span class="mc-form-label">Redemption UI Style</span>
-                                    <select name="mc_custom[box_style]" style="width:100%;">
-                                        <option value="slider" <?php selected($box_style, 'slider'); ?>>Modern Range Slider (Recommended)</option>
-                                        <option value="input" <?php selected($box_style, 'input'); ?>>Standard Input Box</option>
-                                        <option value="toggle" <?php selected($box_style, 'toggle'); ?>>"Use All Points" Toggle Switch</option>
-                                        <option value="woo_link" <?php selected($box_style, 'woo_link'); ?>>Native WooCommerce Coupon Link</option>
-                                    </select>
-                                </div>
-                                <div style="flex:1;">
-                                    <span class="mc-form-label">Position on Checkout Page</span>
-                                    <select name="mc_custom[box_pos]" style="width:100%;">
-                                        <option value="before_checkout_form" <?php selected($box_pos, 'before_checkout_form'); ?>>Before Checkout Form</option>
-                                        <option value="after_checkout_form" <?php selected($box_pos, 'after_checkout_form'); ?>>After Checkout Form</option>
-                                        <option value="review_order_before_submit" <?php selected($box_pos, 'review_order_before_submit'); ?>>Above Payment Button</option>
-                                    </select>
-                                </div>
+                            <div class="mc-form-row" style="margin-bottom:20px;">
+                                <span class="mc-form-label">Congratulations Message</span>
+                                <input type="text" name="mc_custom[cart_ui_congrats]" value="<?php echo esc_attr($congrats); ?>" style="width:100%; max-width: 400px;">
                             </div>
-
-                            <div class="mc-form-row">
-                                <span class="mc-form-label">Redemption Box Title</span>
-                                <input type="text" name="mc_custom[box_title]" value="<?php echo esc_attr($box_title); ?>" style="width:100%;">
+                            <div class="mc-form-row" style="margin-bottom:20px;">
+                                <span class="mc-form-label">Free Badge Text</span>
+                                <input type="text" name="mc_custom[cart_ui_free]" value="<?php echo esc_attr($free); ?>" style="width:100%; max-width: 400px;">
                             </div>
-
-                            <div class="mc-form-row" style="display:flex; gap:40px; margin-top:20px; background:#f9f9f9; padding:20px; border-radius:8px; border:1px solid #eee;">
-                                <div><span class="mc-form-label">Box Background</span><input type="color" name="mc_custom[box_bg]" value="<?php echo esc_attr($box_bg); ?>" class="mc-color-picker-small"></div>
-                                <div><span class="mc-form-label">Box Border</span><input type="color" name="mc_custom[box_border]" value="<?php echo esc_attr($box_border); ?>" class="mc-color-picker-small"></div>
-                                <div><span class="mc-form-label">Apply Button Color</span><input type="color" name="mc_custom[btn_bg]" value="<?php echo esc_attr($btn_bg); ?>" class="mc-color-picker-small"></div>
-                                <div><span class="mc-form-label">Apply Button Text</span><input type="color" name="mc_custom[btn_text]" value="<?php echo esc_attr($btn_text); ?>" class="mc-color-picker-small"></div>
+                            <div class="mc-form-row" style="margin-bottom:20px;">
+                                <span class="mc-form-label">Premium Upgrade Warning Note</span>
+                                <input type="text" name="mc_custom[cart_ui_note]" value="<?php echo esc_attr($note); ?>" style="width:100%; max-width: 600px;">
+                            </div>
+                            <div class="mc-form-row" style="margin-bottom:20px; display:flex; gap:20px;">
+                                <div style="flex:1; max-width: 200px;">
+                                    <span class="mc-form-label">Points Abbreviation</span>
+                                    <input type="text" name="mc_custom[cart_ui_pts_label]" value="<?php echo esc_attr($pts); ?>" style="width:100%;" placeholder="e.g. pts">
+                                </div>
+                                <div style="flex:1; max-width: 200px;">
+                                    <span class="mc-form-label">Remove Button Text</span>
+                                    <input type="text" name="mc_custom[cart_ui_remove]" value="<?php echo esc_attr($remove); ?>" style="width:100%;">
+                                </div>
                             </div>
                         </div>
 
-                        <div class="mc-rule-card" style="padding:25px; border-left:4px solid #9b59b6;">
-                            <h3 style="margin-top:0; border-bottom:1px solid #eee; padding-bottom:10px; margin-bottom:20px;">Product-Level Reward Confirmation Modal</h3>
-                            <p style="margin-top:-10px; margin-bottom:20px; color:#666; font-size:13px;">Design the popup that appears when a user clicks the "Redeem" button on a specific catalog item.</p>
-
-                            <div class="mc-toggle-row" style="margin-bottom:20px;">
-                                <div class="mc-form-info"><span class="mc-form-label">Enable Product Redemption Modal</span><span class="mc-form-desc">If disabled, clicking the redeem button adds the item to cart immediately without asking for confirmation.</span></div>
-                                <label class="mc-toggle-switch">
-                                    <input type="hidden" name="mc_custom[pop_enable]" value="no">
-                                    <input type="checkbox" name="mc_custom[pop_enable]" value="yes" <?php checked($pop_enable, 'yes'); ?>>
-                                    <span class="mc-slider"></span>
-                                </label>
-                            </div>
-
-                            <div class="mc-form-row" style="display:flex; gap:20px; margin-bottom:20px;">
-                                <div style="flex:1;">
-                                    <span class="mc-form-label">Modal Title</span>
-                                    <input type="text" name="mc_custom[pop_title]" value="<?php echo esc_attr($pop_title); ?>" style="width:100%; font-weight:bold;">
+                        <div class="mc-rule-card" style="padding:25px; border-left:4px solid #f39c12; margin-bottom:30px;">
+                            <h3 style="margin-top:0; border-bottom:1px solid #eee; padding-bottom:10px; margin-bottom:20px;">Reward Cart Colors & Styling</h3>
+                            
+                            <div class="mc-form-row" style="display:flex; gap:20px; margin-bottom:20px; flex-wrap: wrap;">
+                                <div style="min-width: 150px;">
+                                    <span class="mc-form-label">Border Style</span>
+                                    <select name="mc_custom[cart_ui_border_style]" style="width:100%;">
+                                        <option value="dashed" <?php selected($border_style, 'dashed'); ?>>Dashed</option>
+                                        <option value="solid" <?php selected($border_style, 'solid'); ?>>Solid</option>
+                                        <option value="dotted" <?php selected($border_style, 'dotted'); ?>>Dotted</option>
+                                    </select>
                                 </div>
-                                <div style="flex:2;">
-                                    <span class="mc-form-label">Confirmation Description</span>
-                                    <span class="mc-form-desc" style="color:#2271b1; font-size:12px;">Variables: <code>{points}</code>, <code>{product}</code></span>
-                                    <input type="text" name="mc_custom[pop_desc]" value="<?php echo esc_attr($pop_desc); ?>" style="width:100%;">
+                                <div style="min-width: 150px;">
+                                    <span class="mc-form-label">Border Weight (px)</span>
+                                    <input type="number" name="mc_custom[cart_ui_border_weight]" value="<?php echo esc_attr($border_weight); ?>" style="width:100%;">
                                 </div>
-                            </div>
-
-                            <div class="mc-form-row" style="display:flex; gap:20px; margin-bottom:20px;">
-                                <div style="flex:1;">
-                                    <span class="mc-form-label">Confirm Button Text</span>
-                                    <input type="text" name="mc_custom[pop_btn_yes]" value="<?php echo esc_attr($pop_btn_yes); ?>" style="width:100%;">
+                                <div style="min-width: 150px;">
+                                    <span class="mc-form-label">Border Color</span>
+                                    <input type="color" name="mc_custom[cart_ui_border_color]" value="<?php echo esc_attr($border_color); ?>" class="mc-color-picker-small">
                                 </div>
-                                <div style="flex:1;">
-                                    <span class="mc-form-label">Cancel Button Text</span>
-                                    <input type="text" name="mc_custom[pop_btn_no]" value="<?php echo esc_attr($pop_btn_no); ?>" style="width:100%;">
+                                <div style="min-width: 150px;">
+                                    <span class="mc-form-label">Row Background Color</span>
+                                    <input type="color" name="mc_custom[cart_ui_bg_color]" value="<?php echo esc_attr($bg_color); ?>" class="mc-color-picker-small">
                                 </div>
                             </div>
 
-                            <div class="mc-form-row" style="margin-bottom:20px;">
-                                <span class="mc-form-label">Success Message (After Adding to Cart)</span>
-                                <input type="text" name="mc_custom[pop_success]" value="<?php echo esc_attr($pop_success); ?>" style="width:100%; border-color:#2ecc71;">
-                            </div>
-
-                            <h4 style="margin:30px 0 15px 0;">Modal Styling</h4>
-                            <div class="mc-form-row" style="display:flex; gap:40px; background:#f9f9f9; padding:20px; border-radius:8px; border:1px solid #eee;">
-                                <div><span class="mc-form-label">Modal Background</span><input type="color" name="mc_custom[pop_bg]" value="<?php echo esc_attr($pop_bg); ?>" class="mc-color-picker-small"></div>
-                                <div><span class="mc-form-label">Text Color</span><input type="color" name="mc_custom[pop_text_color]" value="<?php echo esc_attr($pop_text_color); ?>" class="mc-color-picker-small"></div>
-                                <div><span class="mc-form-label">Confirm Button Color</span><input type="color" name="mc_custom[pop_btn_color]" value="<?php echo esc_attr($pop_btn_color); ?>" class="mc-color-picker-small"></div>
-                            </div>
-                        </div>
-
-                    <?php 
-                    // ==========================================
-                    // AUTO-GIVEAWAYS TAB 
-                    // ==========================================
-                    elseif ($current_sub === 'giveaways'): 
-                        $ga_title = $settings['ga_title'] ?? '🎉 Free Reward Unlocked!';
-                        $ga_msg = $settings['ga_msg'] ?? 'Congratulations! You have earned a free {product_name} with your purchase.';
-                        $ga_bg = $settings['ga_bg'] ?? '#2ecc71';
-                        $ga_text = $settings['ga_text'] ?? '#ffffff';
-                    ?>
-                        <div class="mc-rule-card" style="padding:25px; border-left:4px solid #1abc9c;">
-                            <h3 style="margin-top:0; border-bottom:1px solid #eee; padding-bottom:10px; margin-bottom:20px;">Auto-Giveaway Notifications</h3>
-                            <div class="mc-form-row" style="margin-bottom:20px;">
-                                <span class="mc-form-label">Giveaway Notification Title</span>
-                                <input type="text" name="mc_custom[ga_title]" value="<?php echo esc_attr($ga_title); ?>" style="width:100%;">
-                            </div>
-                            <div class="mc-form-row" style="margin-bottom:20px;">
-                                <span class="mc-form-label">Giveaway Message</span>
-                                <span class="mc-form-desc" style="color:#2271b1;">Available Variables: <code>{product_name}</code></span>
-                                <input type="text" name="mc_custom[ga_msg]" value="<?php echo esc_attr($ga_msg); ?>" style="width:100%;">
-                            </div>
-                            <div class="mc-form-row" style="display:flex; gap:30px; margin-top:20px; background:#f9f9f9; padding:15px; border-radius:6px; border:1px solid #eee;">
-                                <div><span class="mc-form-label">Notification Background Color</span><input type="color" name="mc_custom[ga_bg]" value="<?php echo esc_attr($ga_bg); ?>" class="mc-color-picker-small"></div>
-                                <div><span class="mc-form-label">Notification Text Color</span><input type="color" name="mc_custom[ga_text]" value="<?php echo esc_attr($ga_text); ?>" class="mc-color-picker-small"></div>
+                            <div class="mc-form-row" style="display:flex; gap:30px; background:#f9f9f9; padding:20px; border-radius:8px; border:1px solid #eee; flex-wrap: wrap;">
+                                <div><span class="mc-form-label">Congrats Text Color</span><input type="color" name="mc_custom[cart_ui_congrats_color]" value="<?php echo esc_attr($congrats_color); ?>" class="mc-color-picker-small"></div>
+                                <div><span class="mc-form-label">FREE Text Color</span><input type="color" name="mc_custom[cart_ui_free_color]" value="<?php echo esc_attr($free_color); ?>" class="mc-color-picker-small"></div>
+                                <div><span class="mc-form-label">Warning Note Color</span><input type="color" name="mc_custom[cart_ui_note_color]" value="<?php echo esc_attr($note_color); ?>" class="mc-color-picker-small"></div>
                             </div>
                         </div>
 
