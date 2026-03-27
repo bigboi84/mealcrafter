@@ -79,16 +79,6 @@
                     <option value="subtotal_post" <?php selected($earn_basis, 'subtotal_post'); ?>>Product Subtotal (Post-Tax) - Includes item taxes</option>
                     <option value="grand_total" <?php selected($earn_basis, 'grand_total'); ?>>Cart Grand Total - Includes shipping, fees, and taxes</option>
                 </select>
-
-                <div style="background:#f1f5f9; padding:15px; border-radius:6px; margin-top:15px; font-size:13px; color:#475569; border-left:3px solid #007cba;">
-                    <strong style="display:block; margin-bottom: 8px; color: #111;">Example Scenarios:</strong> 
-                    If a rule gives 1 point for every $10 spent, and a customer adds <strong>10 products priced at $8 each ($80 total)</strong> to their cart:<br><br>
-                    <ul style="margin: 0; padding-left: 20px; line-height: 1.6;">
-                        <li><strong>Unit Price:</strong> Won't award any points. ($8 is less than the $10 minimum threshold).</li>
-                        <li><strong>Product Subtotal:</strong> Will award 8 points. ($80 line total / 10).</li>
-                        <li><strong>Grand Total:</strong> If shipping is $20, it will award 10 points. ($100 final bill / 10).</li>
-                    </ul>
-                </div>
             </div>
         </div>
 
@@ -111,19 +101,14 @@
     <div class="mc-form-section" id="mc-exclusion-rules">
         <h3>Points removal and exclusion</h3>
         
-        <div class="mc-form-row" style="background:#fef8ee; padding:15px; border-left:3px solid #f39c12; border-radius:4px; margin-bottom:25px;">
+        <div class="mc-form-row">
             <div class="mc-form-info">
-                <span class="mc-form-label" style="margin-bottom: 8px;">Assign points when the order has status:</span>
+                <span class="mc-form-label">Assign points when the order has status</span>
             </div>
-            <div class="mc-form-control">
-                <?php $statuses = wc_get_order_statuses(); ?>
-                <select name="mc_pts_order_status[]" class="wc-enhanced-select" multiple="multiple" style="width:100%; max-width: 600px;">
-                    <?php $selected_statuses = get_option('mc_pts_order_status', ['wc-completed']); ?>
-                    <?php foreach($statuses as $key => $status): ?>
-                        <option value="<?php echo esc_attr($key); ?>" <?php echo in_array($key, (array)$selected_statuses) ? 'selected' : ''; ?>><?php echo esc_html($status); ?></option>
-                    <?php endforeach; ?>
-                </select>
-                <p style="font-size:12px; color:#666; margin-top:6px;">Select all order statuses that should trigger point awarding.</p>
+            <div class="mc-form-control mc-radio-group">
+                <?php $status = get_option('mc_pts_assign_status', 'completed'); ?>
+                <label><input type="radio" name="mc_pts_assign_status" value="completed" <?php checked($status, 'completed'); ?>> Completed - Points are assigned only when order is completed</label>
+                <label><input type="radio" name="mc_pts_assign_status" value="processing" <?php checked($status, 'processing'); ?>> Processing - Points are assigned when order is processing</label>
             </div>
         </div>
 
@@ -152,30 +137,30 @@
         <div class="mc-toggle-row">
             <div class="mc-form-info" style="margin:0;">
                 <span class="mc-form-label">Reassign spent points when an order is refunded</span>
-                <span class="mc-form-desc">If a customer used points to get a discount, refunding the order returns those points to their account.</span>
             </div>
             <label class="mc-toggle-switch"><input type="checkbox" name="mc_pts_reassign_refunded" value="yes" <?php checked(get_option('mc_pts_reassign_refunded', 'no'), 'yes'); ?>><span class="mc-slider"></span></label>
         </div>
 
         <div class="mc-toggle-row">
-            <div class="mc-form-info" style="margin:0; max-width: 80%;">
-                <span class="mc-form-label">Do not assign points to the full order amount if a coupon is used</span>
-                <span class="mc-form-desc">Users earn points only on the amount minus the coupon discount. If off, they earn points on the full original value.</span>
+            <div class="mc-form-info" style="margin:0;">
+                <span class="mc-form-label">Do not assign points if coupon is used</span>
+                <span class="mc-form-desc">If enabled, any applied coupon will set earning to 0 for the whole order.</span>
             </div>
             <label class="mc-toggle-switch"><input type="checkbox" name="mc_pts_exclude_coupons" value="yes" <?php checked(get_option('mc_pts_exclude_coupons', 'yes'), 'yes'); ?>><span class="mc-slider"></span></label>
+        </div>
+        
+        <div class="mc-toggle-row">
+            <div class="mc-form-info" style="margin:0;">
+                <span class="mc-form-label" style="color: #2ecc71; font-weight: bold;">Earn points on paid upgrades for redeemed combos</span>
+                <span class="mc-form-desc">Enable to award points on the premium upgrade amount paid by the customer when redeeming a point-exempt combo product.</span>
+            </div>
+            <label class="mc-toggle-switch"><input type="checkbox" name="mc_pts_extra_earn_on_paid_upgrades" value="yes" <?php checked(get_option('mc_pts_extra_earn_on_paid_upgrades', 'no'), 'yes'); ?>><span class="mc-slider"></span></label>
         </div>
     </div>
 
     <div class="mc-form-section">
         <h3>Other options</h3>
         
-        <div class="mc-toggle-row" style="margin-bottom: 20px;">
-            <div class="mc-form-info" style="margin:0;">
-                <span class="mc-form-label">Allow shop manager to manage this plugin</span>
-            </div>
-            <label class="mc-toggle-switch"><input type="checkbox" name="mc_pts_allow_shop_manager" value="yes" <?php checked(get_option('mc_pts_allow_shop_manager', 'no'), 'yes'); ?>><span class="mc-slider"></span></label>
-        </div>
-
         <div class="mc-form-row">
             <div class="mc-form-info">
                 <span class="mc-form-label">Points rounding</span>
