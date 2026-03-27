@@ -205,7 +205,6 @@ class MC_Points_Checkout {
         $custom = get_option('mc_customization_settings', []);
         $bg_color = $custom['cart_ui_bg_color'] ?? '#fdfbf7';
         $border_color = $custom['cart_ui_border_color'] ?? '#f6c064';
-        
         ?>
         <style>
             tr.mc-reward-active-row {
@@ -253,8 +252,6 @@ class MC_Points_Checkout {
                 $note_text = $custom['cart_ui_note'] ?? '* Note: Customer pays for premium upgrades.';
                 $pts_label = $custom['cart_ui_pts_label'] ?? 'pts';
                 $remove_text = $custom['cart_ui_remove'] ?? 'Remove Reward';
-
-                
                 $border_weight = $custom['cart_ui_border_weight'] ?? '2';
                 $border_color = $custom['cart_ui_border_color'] ?? '#e67e22';
                 $congrats_color = $custom['cart_ui_congrats_color'] ?? '#e67e22';
@@ -314,7 +311,6 @@ class MC_Points_Checkout {
 
                         // 3. Build the beautiful nested box inside the table row column
                         $html = '<div style="margin-top: 12px; padding: 12px 15px; border: ' . esc_attr($border_weight) . 'px ' . esc_attr($border_style) . ' ' . esc_attr($border_color) . '; border-radius: 8px;">';
-                        
                         $html .= '<div style="font-size: 11px; text-transform: uppercase; font-weight: 800; color: ' . esc_attr($congrats_color) . '; margin-bottom: 4px; letter-spacing: 0.5px;">' . esc_html($congrats_text) . '</div>';
 
                         // Base Item, Quantity (Injected Inline), and Free/Pts Block
@@ -467,9 +463,6 @@ class MC_Points_Checkout {
         <?php
     }
 
-    // -----------------------------------------------------------------------------------
-    // PART 3: THE NATIVE SUBTRACTION ENGINE (Single Cart Fee)
-    // -----------------------------------------------------------------------------------
     public function apply_points_fee( $cart ) {
         if ( is_admin() && ! defined( 'DOING_AJAX' ) ) return;
         
@@ -491,7 +484,6 @@ class MC_Points_Checkout {
                 $cart_item = $cart->cart_contents[$redeemed_key];
                 $qty = isset($cart_item['quantity']) && $cart_item['quantity'] > 0 ? (int) $cart_item['quantity'] : 1;
                 
-                // Fetch the strict base DB price to perfectly deduct against the Subtotal
                 $orig_product = wc_get_product( $cart_item['product_id'] );
                 if ( ! $orig_product ) return;
 
@@ -510,7 +502,6 @@ class MC_Points_Checkout {
                 $base_val = get_option('mc_pts_prod_base_price_only', 'yes');
                 $base_only = in_array( strtolower( (string) $base_val ), ['yes', 'on', '1', 'true'], true );
 
-                // Calculate upgrades dynamically to collapse the fee line if 100% Free Mode is ON
                 $upgrade_cost = 0;
                 if ( ! $base_only && isset($cart_item['mc_combo_selections']) && is_array($cart_item['mc_combo_selections']) ) {
                     $math_logic = get_option( 'mc_combo_math_logic', 'on' );
@@ -536,12 +527,10 @@ class MC_Points_Checkout {
                     }
                 }
 
-                // THE FIX: ONE SINGLE DEDUCTION
                 if ( $base_only ) {
                     $wipe_inclusive = $base_price_incl * $qty;
                     $reward_label = 'Loyalty Reward: ' . $orig_product->get_name();
                 } else {
-                    // 100% Free - we wipe out the whole thing in a single line, taking off the "(100% Free)" text
                     $wipe_inclusive = ($base_price_incl + $upgrade_cost) * $qty;
                     $reward_label = 'Loyalty Reward: ' . $orig_product->get_name();
                 }
@@ -638,38 +627,42 @@ class MC_Points_Checkout {
     }
 
     // -----------------------------------------------------------------------------------
-    // PART 4: PRODUCT REDEMPTION POPUP UI & BULLETPROOF JS
+    // PART 4: PRODUCT REDEMPTION POPUP UI (PULLED FROM NEW OPTIONS)
     // -----------------------------------------------------------------------------------
     public function render_redemption_modal_and_js() {
         if (!is_user_logged_in()) return;
         
-        $custom = get_option('mc_customization_settings', []);
-        if ( ($custom['pop_enable'] ?? 'yes') !== 'yes' ) return;
+        if ( get_option('mc_pts_pop_enable', 'yes') !== 'yes' ) return;
 
         $user_id = get_current_user_id();
         $balance = $this->get_accurate_user_points($user_id);
 
-        $bg = $custom['pop_bg'] ?? '#ffffff';
-        $txt = $custom['pop_text_color'] ?? '#111111';
-        $btn = $custom['pop_btn_color'] ?? '#2ecc71';
-        
+        $bg = get_option('mc_pts_pop_bg', '#ffffff');
+        $txt = get_option('mc_pts_pop_text_color', '#111111');
+        $btn = get_option('mc_pts_pop_btn_color', '#2ecc71');
+
         $cat_settings = get_option('mc_pts_catalog_settings', []);
         $terms_url = $cat_settings['terms_url'] ?? '';
         $max_per_cart = get_option('mc_pts_prod_max_per_cart', '1');
-        
+
         // Build Popup Disclaimer
         $base_val = get_option('mc_pts_prod_base_price_only', 'yes');
         $base_only = in_array( strtolower( (string) $base_val ), ['yes', 'on', '1', 'true'], true );
-        
+
         $disclaimers = [];
         if ($base_only) $disclaimers[] = 'premium upgrades';
-        
+
         $disclaimer_html = '';
         if (!empty($disclaimers)) {
             $disclaimer_html = '<div style="font-size:12px; color:#d35400; font-style:italic; margin-bottom:20px; font-weight:bold;">* Note: You are responsible for paying ' . implode(' and ', $disclaimers) . '.</div>';
         }
 
-        $desc_template = esc_js($custom['pop_desc'] ?? 'Are you sure you want to spend {points} points to get {product} for free?');
+        $pop_title = get_option('mc_pts_pop_title', 'Unlock this Reward?');
+        $pop_desc  = get_option('mc_pts_pop_desc', 'Are you sure you want to spend {points} points to get this item for free?');
+        $pop_btn_yes = get_option('mc_pts_pop_btn_yes', 'Yes, Unlock It!');
+        $pop_btn_no = get_option('mc_pts_pop_btn_no', 'Not right now');
+
+        $desc_template = esc_js($pop_desc);
         $ajax_url = esc_url(admin_url('admin-ajax.php'));
 
         ?>
@@ -680,7 +673,7 @@ class MC_Points_Checkout {
 
         <div id="mc-redeem-modal" data-balance="<?php echo esc_attr($balance); ?>" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:999999; align-items:center; justify-content:center;">
             <div style="background:<?php echo esc_attr($bg); ?>; padding:40px; border-radius:15px; max-width:450px; width:90%; text-align:center; color:<?php echo esc_attr($txt); ?>; box-shadow:0 10px 30px rgba(0,0,0,0.2);">
-                <h2 id="mc-pop-title" style="margin-top:0; font-weight:900; color:inherit;"><?php echo esc_html($custom['pop_title'] ?? 'Unlock this Reward?'); ?></h2>
+                <h2 id="mc-pop-title" style="margin-top:0; font-weight:900; color:inherit;"><?php echo esc_html($pop_title); ?></h2>
                 <p id="mc-pop-desc" style="font-size:15px; line-height:1.5; margin-bottom:20px; color:inherit;"></p>
                 
                 <p style="font-size:13px; color:#e74c3c; font-weight:bold; margin-top:-10px; margin-bottom:15px;">Limit: <?php echo esc_html($max_per_cart); ?> reward redemption(s) per order.</p>
@@ -702,8 +695,8 @@ class MC_Points_Checkout {
                 <?php endif; ?>
 
                 <div class="mc-modal-btns">
-                    <button id="mc-confirm-redemption" class="mc-btn-hover" style="flex:1; background:<?php echo esc_attr($btn); ?>; color:#fff; border:none; padding:12px; border-radius:8px; font-weight:bold; cursor:pointer;"><?php echo esc_html($custom['pop_btn_yes'] ?? 'Yes, Unlock It!'); ?></button>
-                    <button class="mc-btn-hover" onclick="jQuery('#mc-redeem-modal').css('display', 'none');" style="flex:1; background:#eee; color:#333; border:none; padding:12px; border-radius:8px; font-weight:bold; cursor:pointer;"><?php echo esc_html($custom['pop_btn_no'] ?? 'Cancel'); ?></button>
+                    <button id="mc-confirm-redemption" class="mc-btn-hover" style="flex:1; background:<?php echo esc_attr($btn); ?>; color:#fff; border:none; padding:12px; border-radius:8px; font-weight:bold; cursor:pointer;"><?php echo esc_html($pop_btn_yes); ?></button>
+                    <button class="mc-btn-hover" onclick="jQuery('#mc-redeem-modal').css('display', 'none');" style="flex:1; background:#eee; color:#333; border:none; padding:12px; border-radius:8px; font-weight:bold; cursor:pointer;"><?php echo esc_html($pop_btn_no); ?></button>
                 </div>
             </div>
         </div>
