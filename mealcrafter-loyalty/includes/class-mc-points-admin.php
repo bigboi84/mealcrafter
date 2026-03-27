@@ -23,9 +23,9 @@ class MC_Points_Admin {
     }
 
     public function register_global_settings() {
-        // --- NEW OPTION FOR CALCULATION BASIS ---
         register_setting('mc_loyalty_options_group', 'mc_earn_basis'); 
 
+        // ALL YOUR ORIGINAL SETTINGS RESTORED
         register_setting('mc_loyalty_options_group', 'mc_pts_assign_type');
         register_setting('mc_loyalty_options_group', 'mc_pts_assign_roles');
         register_setting('mc_loyalty_options_group', 'mc_pts_specific_roles'); 
@@ -102,6 +102,7 @@ class MC_Points_Admin {
         register_setting('mc_loyalty_options_group', 'mc_pts_coupon_expiry_days');
         register_setting('mc_loyalty_options_group', 'mc_pts_redeem_rules');
 
+        // REGULAR PRODUCT LEVEL SETTINGS
         register_setting('mc_prod_general_group', 'mc_pts_prod_enable');
         register_setting('mc_prod_general_group', 'mc_pts_prod_max_per_cart');
         register_setting('mc_prod_general_group', 'mc_pts_prod_min_cart_total');
@@ -110,6 +111,20 @@ class MC_Points_Admin {
         register_setting('mc_prod_general_group', 'mc_pts_prod_target_levels');
         register_setting('mc_prod_general_group', 'mc_pts_prod_base_price_only');
         register_setting('mc_prod_general_group', 'mc_pts_prod_tax_override');
+
+        // NEW: MODAL POPUP SETTINGS RESTORED TO PRODUCT LEVEL
+        register_setting('mc_prod_general_group', 'mc_pts_pop_enable');
+        register_setting('mc_prod_general_group', 'mc_pts_pop_title');
+        register_setting('mc_prod_general_group', 'mc_pts_pop_desc');
+        register_setting('mc_prod_general_group', 'mc_pts_pop_btn_yes');
+        register_setting('mc_prod_general_group', 'mc_pts_pop_btn_no');
+        register_setting('mc_prod_general_group', 'mc_pts_pop_success');
+        register_setting('mc_prod_general_group', 'mc_pts_pop_bg');
+        register_setting('mc_prod_general_group', 'mc_pts_pop_btn_color');
+        register_setting('mc_prod_general_group', 'mc_pts_pop_text_color');
+        
+        // NEW: EARN ON PAID UPGRADES SETTING
+        register_setting('mc_loyalty_options_group', 'mc_pts_extra_earn_on_paid_upgrades');
 
         register_setting('mc_prod_bulk_group', 'mc_pts_bulk_costs');
         register_setting('mc_prod_giveaway_group', 'mc_pts_auto_giveaways');
@@ -143,7 +158,6 @@ class MC_Points_Admin {
 
         ?>
         <style>
-            /* SELECT2 OVERRIDE (Clean, Pill-Shaped, Secure) */
             .select2-container { width: 100% !important; z-index: 99999 !important; }
             .mc-rule-card, .mc-existing-rule { overflow: visible !important; }
 
