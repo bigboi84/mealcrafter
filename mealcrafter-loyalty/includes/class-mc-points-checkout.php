@@ -1,23 +1,30 @@
 <?php
 /**
  * MealCrafter: Loyalty Checkout & Cart Logic
- * Updated: Wednesday, March 25, 2026
- * Logic: Option A (Grouped Line Item for Perfect Native Tax Reporting)
+ * Updated: Thursday, March 26, 2026
+ * Logic: Single Base Wipe + Elegant Cart Row UI + Settings Dashboard
  */
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 class MC_Points_Checkout {
 
     public function __construct() {
+        // ADMIN SETTINGS DASHBOARD FOR UI CUSTOMIZATION
+        add_action('admin_menu', [$this, 'add_ui_settings_page']);
+
         // 1. SMART TRIGGERS & AUTO-GIVEAWAYS
         add_action( 'template_redirect', [$this, 'process_smart_triggers'] );
         add_action( 'woocommerce_add_to_cart', [$this, 'process_smart_triggers'] );
         add_action( 'woocommerce_cart_item_removed', [$this, 'process_smart_triggers'] );
         add_action( 'woocommerce_before_calculate_totals', [$this, 'set_giveaway_prices_to_zero'], 9999 );
-        add_filter( 'woocommerce_cart_item_name', [$this, 'add_giveaway_badge_to_cart_name'], 10, 3 );
         add_action( 'woocommerce_checkout_order_processed', [$this, 'consume_app_task_flags'], 10, 1 );
 
-        // 2. POINTS REDEMPTION (DISCOUNTS & PRODUCT LEVEL)
+        // CAR ROW UI HIGHLIGHT & CUSTOM BREAKDOWN (Priority 20 to wrap the Combo HTML)
+        add_filter( 'woocommerce_cart_item_name', [$this, 'inject_reward_custom_ui'], 20, 3 );
+        add_filter( 'woocommerce_cart_item_class', [$this, 'highlight_reward_cart_row'], 10, 3 );
+        add_action( 'wp_head', [$this, 'inject_reward_styles'] );
+
+        // 2. POINTS REDEMPTION
         $custom = get_option('mc_customization_settings', []);
         $box_pos = !empty($custom['box_pos']) ? $custom['box_pos'] : 'woocommerce_before_checkout_form';
         
@@ -30,10 +37,74 @@ class MC_Points_Checkout {
         add_action( 'wp_ajax_mc_apply_product_redemption_cart', [$this, 'ajax_apply_product_cart'] );
         add_action( 'wp_ajax_mc_remove_product_redemption_cart', [$this, 'ajax_remove_product_cart'] );
         
-        add_action( 'woocommerce_cart_calculate_fees', [$this, 'apply_points_fee'] );
+        add_action( 'woocommerce_cart_calculate_fees', [$this, 'apply_points_fee'], 9999 );
         add_action( 'woocommerce_checkout_order_processed', [$this, 'process_order_points_deduction'], 10, 1 );
 
         add_action( 'wp_footer', [$this, 'render_redemption_modal_and_js'] );
+    }
+
+    // -----------------------------------------------------------------------------------
+    // PART 0: BACKEND CUSTOMIZATION SETTINGS (Added strictly for Cart UI Design)
+    // -----------------------------------------------------------------------------------
+    public function add_ui_settings_page() {
+        add_submenu_page(
+            'woocommerce',
+            'Reward Cart UI',
+            'Reward Cart UI',
+            'manage_woocommerce',
+            'mc-reward-cart-ui',
+            [$this, 'render_ui_settings_page']
+        );
+    }
+
+    public function render_ui_settings_page() {
+        if ( isset($_POST['mc_cart_ui_nonce']) && wp_verify_nonce($_POST['mc_cart_ui_nonce'], 'mc_save_cart_ui') ) {
+            update_option('mc_cart_ui_congrats', sanitize_text_field($_POST['mc_cart_ui_congrats']));
+            update_option('mc_cart_ui_free', sanitize_text_field($_POST['mc_cart_ui_free']));
+            update_option('mc_cart_ui_note', sanitize_text_field($_POST['mc_cart_ui_note']));
+            update_option('mc_cart_ui_pts_label', sanitize_text_field($_POST['mc_cart_ui_pts_label']));
+            update_option('mc_cart_ui_remove', sanitize_text_field($_POST['mc_cart_ui_remove']));
+            echo '<div class="updated"><p>Cart UI Settings successfully saved.</p></div>';
+        }
+        
+        $congrats = get_option('mc_cart_ui_congrats', '🎉 Congratulations!');
+        $free = get_option('mc_cart_ui_free', 'FREE');
+        $note = get_option('mc_cart_ui_note', '* Note: Customer pays for premium upgrades.');
+        $pts = get_option('mc_cart_ui_pts_label', 'pts');
+        $remove = get_option('mc_cart_ui_remove', 'Remove Reward');
+        
+        ?>
+        <div class="wrap">
+            <h1>Reward Cart UI Customization</h1>
+            <p>Edit the labels and warnings displayed inside the Cart row when a user redeems a product.</p>
+            <form method="POST">
+                <?php wp_nonce_field('mc_save_cart_ui', 'mc_cart_ui_nonce'); ?>
+                <table class="form-table">
+                    <tr>
+                        <th scope="row"><label>Congratulations Message</label></th>
+                        <td><input type="text" name="mc_cart_ui_congrats" value="<?php echo esc_attr($congrats); ?>" class="regular-text"></td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><label>Free Badge Text</label></th>
+                        <td><input type="text" name="mc_cart_ui_free" value="<?php echo esc_attr($free); ?>" class="regular-text"></td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><label>Premium Upgrade Warning Note</label></th>
+                        <td><input type="text" name="mc_cart_ui_note" value="<?php echo esc_attr($note); ?>" class="regular-text" style="width:100%;max-width:500px;"></td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><label>Points Abbreviation (e.g. 'pts')</label></th>
+                        <td><input type="text" name="mc_cart_ui_pts_label" value="<?php echo esc_attr($pts); ?>" class="regular-text"></td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><label>Remove Button Text</label></th>
+                        <td><input type="text" name="mc_cart_ui_remove" value="<?php echo esc_attr($remove); ?>" class="regular-text"></td>
+                    </tr>
+                </table>
+                <p class="submit"><input type="submit" class="button-primary" value="Save UI Settings"></p>
+            </form>
+        </div>
+        <?php
     }
 
     private function get_accurate_user_points($user_id) {
@@ -121,12 +192,39 @@ class MC_Points_Checkout {
     }
 
     // -----------------------------------------------------------------------------------
-    // PART 2: UI INJECTIONS
+    // PART 2: THE ELEGANT CART ROW UI & HIGHLIGHT ENGINE
     // -----------------------------------------------------------------------------------
-    public function add_giveaway_badge_to_cart_name( $item_name, $cart_item, $cart_item_key ) {
+    public function highlight_reward_cart_row( $class, $cart_item, $cart_item_key ) {
+        if ( WC()->session->get('mc_redeemed_cart_item') === $cart_item_key ) {
+            $class .= ' mc-reward-active-row';
+        }
+        return $class;
+    }
+
+    public function inject_reward_styles() {
+        $custom = get_option('mc_customization_settings', []);
+        $bg_color = $custom['cart_ui_bg_color'] ?? '#fdfbf7';
+        $border_color = $custom['cart_ui_border_color'] ?? '#f6c064';
+        
+        ?>
+        <style>
+            tr.mc-reward-active-row {
+                background-color: <?php echo esc_attr($bg_color); ?> !important;
+                border: 2px dashed <?php echo esc_attr($border_color); ?> !important;
+                box-shadow: inset 0 0 10px rgba(246, 192, 100, 0.1) !important;
+            }
+            tr.mc-reward-active-row td {
+                background-color: transparent !important;
+                border-bottom: none !important;
+            }
+        </style>
+        <?php
+    }
+
+    public function inject_reward_custom_ui( $item_name, $cart_item, $cart_item_key ) {
         if ( isset( $cart_item['_mc_is_giveaway'] ) && $cart_item['_mc_is_giveaway'] === true ) {
             $badge = '<span style="background:#e74c3c; color:#fff; font-size:10px; padding:3px 8px; border-radius:12px; margin-left:8px; vertical-align:middle; font-weight:bold; letter-spacing:0.5px; box-shadow:0 2px 4px rgba(231,76,60,0.3);">FREE GIFT</span>';
-            $item_name .= $badge;
+            return $item_name . $badge;
         }
 
         $pm_val = get_option('mc_pts_prod_enable', 'no');
@@ -147,27 +245,130 @@ class MC_Points_Checkout {
 
                 $base_val = get_option('mc_pts_prod_base_price_only', 'yes');
                 $base_only = in_array( strtolower( (string) $base_val ), ['yes', 'on', '1', 'true'], true );
-
-                $tax_val = get_option('mc_pts_prod_tax_override', 'yes');
-                $customer_pays_tax = in_array( strtolower( (string) $tax_val ), ['yes', 'on', '1', 'true'], true );
                 
-                $disclaimers = [];
-                if ($base_only) $disclaimers[] = 'premium upgrades';
-                if ($customer_pays_tax) $disclaimers[] = 'taxes';
-                $disclaimer_html = '';
-                if (!empty($disclaimers)) {
-                    $disclaimer_html = '<div style="font-size:11px; color:#d35400; font-style:italic; margin-top:4px; font-weight:600;">* Note: Customer pays for ' . implode(' and ', $disclaimers) . '.</div>';
-                }
+                // Fetch dynamic labels & colors from the Customization Dashboard
+                $custom = get_option('mc_customization_settings', []);
+                $congrats_text = $custom['cart_ui_congrats'] ?? '🎉 Congratulations!';
+                $free_text = $custom['cart_ui_free'] ?? 'FREE';
+                $note_text = $custom['cart_ui_note'] ?? '* Note: Customer pays for premium upgrades.';
+                $pts_label = $custom['cart_ui_pts_label'] ?? 'pts';
+                $remove_text = $custom['cart_ui_remove'] ?? 'Remove Reward';
+
+                
+                $border_weight = $custom['cart_ui_border_weight'] ?? '2';
+                $border_color = $custom['cart_ui_border_color'] ?? '#e67e22';
+                $congrats_color = $custom['cart_ui_congrats_color'] ?? '#e67e22';
+                $free_color = $custom['cart_ui_free_color'] ?? '#2ecc71';
+                $note_color = $custom['cart_ui_note_color'] ?? '#d35400';
+
+                $qty = isset($cart_item['quantity']) ? (int) $cart_item['quantity'] : 1;
 
                 if ($disable_with_coupons && $has_coupons) {
                     $item_name .= '<div style="margin-top:5px; font-size:12px; color:#e74c3c; font-weight:bold;">🔒 Cannot be combined with coupons.</div>';
                 } else {
                     if ($redeemed_key === $cart_item_key) {
-                        $item_name .= '<div style="margin-top:5px; font-size:12px; color:#2ecc71; font-weight:bold;">✅ Redeemed (-'.number_format($cost).' Points) <a href="#" class="mc-remove-product-redemption mc-remove-hover" style="color:#e74c3c; text-decoration:underline; margin-left:10px; cursor:pointer;">Remove</a></div>' . $disclaimer_html;
+                        
+                        // 1. Extract upgrades to dynamically inject them into the display
+                        $upgrade_cost = 0;
+                        $upgrade_names = [];
+                        if ( isset($cart_item['mc_combo_selections']) && is_array($cart_item['mc_combo_selections']) ) {
+                            $math_logic = get_option( 'mc_combo_math_logic', 'on' );
+                            $highest_extra = 0;
+                            $highest_name = '';
+
+                            if ( $math_logic === 'on' ) {
+                                foreach ( $cart_item['mc_combo_selections'] as $sel ) {
+                                    $id = is_array($sel) ? $sel['id'] : $sel;
+                                    $p = wc_get_product( $id );
+                                    if ( $p && (float)$p->get_price() > $highest_extra ) {
+                                        $highest_extra = (float)$p->get_price();
+                                        $clean_name = preg_replace('/\s*\(\+?\s*\$?[0-9.]+\)/', '', $p->get_name());
+                                        $highest_name = trim(strip_tags($clean_name));
+                                    }
+                                }
+                                if ($highest_extra > 0) {
+                                    $upgrade_cost = $highest_extra;
+                                    $upgrade_names[] = $highest_name;
+                                }
+                            } else {
+                                foreach ( $cart_item['mc_combo_selections'] as $sel ) {
+                                    $id = is_array($sel) ? $sel['id'] : $sel;
+                                    $p = wc_get_product( $id );
+                                    if ( $p && (float)$p->get_price() > 0 ) {
+                                        $upgrade_cost += (float)$p->get_price();
+                                        $clean_name = preg_replace('/\s*\(\+?\s*\$?[0-9.]+\)/', '', $p->get_name());
+                                        $upgrade_names[] = trim(strip_tags($clean_name));
+                                    }
+                                }
+                            }
+                        }
+
+                        // 2. Safely capture the Combo selections generated by mc-combo
+                        $combo_html = '';
+                        if ( strpos( $item_name, '<div class="mc-cart-combo-summary"' ) !== false ) {
+                            $parts = explode( '<div class="mc-cart-combo-summary"', $item_name );
+                            if ( isset($parts[1]) ) {
+                                $combo_html = '<div class="mc-cart-combo-summary"' . $parts[1];
+                            }
+                        }
+
+                        // 3. Build the beautiful nested box inside the table row column
+                        $html = '<div style="margin-top: 12px; padding: 12px 15px; border: ' . esc_attr($border_weight) . 'px ' . esc_attr($border_style) . ' ' . esc_attr($border_color) . '; border-radius: 8px;">';
+                        
+                        $html .= '<div style="font-size: 11px; text-transform: uppercase; font-weight: 800; color: ' . esc_attr($congrats_color) . '; margin-bottom: 4px; letter-spacing: 0.5px;">' . esc_html($congrats_text) . '</div>';
+
+                        // Base Item, Quantity (Injected Inline), and Free/Pts Block
+                        $qty_html = '<span style="font-weight:900; color:#222; margin-right:4px;">(' . $qty . ')</span>';
+                        
+                        $html .= '<div style="display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: #333; margin-bottom: 6px;">';
+                        $html .= '<span>Loyalty Reward: ' . $qty_html . '<strong><a href="' . esc_url( $product->get_permalink( $cart_item ) ) . '" style="color:#333; text-decoration:none;">' . esc_html($product->get_name()) . '</a></strong></span>';
+                        
+                        // Right side wrapper: FREE text FIRST, Points badge to the RIGHT, nudged up 1px!
+                        $html .= '<div style="display: flex; align-items: center; gap: 8px;">';
+                        $html .= '<strong style="color: ' . esc_attr($free_color) . ';">' . esc_html($free_text) . '</strong>';
+                        $html .= '<span style="background: #e74c3c; color: #fff; font-size: 11px; font-weight: bold; padding: 2px 8px; border-radius: 12px; box-shadow: 0 2px 4px rgba(231,76,60,0.3); white-space: nowrap; transform: translateY(-1px);">- ' . number_format($cost) . ' ' . esc_html($pts_label) . '</span>';
+                        $html .= '</div>';
+                        $html .= '</div>';
+
+                        // Premium Upgrades Breakdown
+                        if ( $base_only ) {
+                            if ( $upgrade_cost > 0 ) {
+                                $upg_label = !empty($upgrade_names) ? implode(', ', $upgrade_names) : 'Premium Upgrades';
+                                $html .= '<div style="display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: #333; margin-bottom: 6px;">';
+                                $html .= '<span>Premium Upgrade: <strong>' . esc_html($upg_label) . '</strong></span>';
+                                $html .= '<strong>' . wc_price($upgrade_cost) . '</strong>';
+                                $html .= '</div>';
+                            }
+                            $html .= '<div style="font-size: 11px; color: ' . esc_attr($note_color) . '; font-style: italic; margin-top: 4px; font-weight: 600;">' . esc_html($note_text) . '</div>';
+                        } else {
+                            // The 100% Free UI
+                            $html .= '<div style="font-size: 11px; color: ' . esc_attr($free_color) . '; font-style: italic; margin-top: 4px; font-weight: 600;">Entire item and all premium upgrades are free.</div>';
+                        }
+
+                        // PERFECT WRAPPING: The Combo selections are injected beautifully!
+                        if ( !empty($combo_html) ) {
+                            $html .= '<div style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed #eedcc9;">';
+                            $html .= $combo_html;
+                            $html .= '</div>';
+                        }
+
+                        // Removal Button
+                        $html .= '<div style="margin-top: 15px; padding-top: 10px; border-top: 1px solid #eedcc9; text-align: right;">';
+                        $html .= '<a href="#" class="mc-remove-product-redemption" style="font-size: 11px; color: #e74c3c; font-weight: bold; text-decoration: underline;">' . esc_html($remove_text) . '</a>';
+                        $html .= '</div>';
+                        
+                        $html .= '</div>';
+
+                        return $html;
+
                     } elseif ($balance >= $cost) {
-                        $item_name .= '<div style="margin-top:5px;"><a href="#" class="mc-trigger-cart-redemption" data-key="'.esc_attr($cart_item_key).'" data-product="'.esc_attr($product->get_name()).'" data-cost="'.esc_attr($cost).'" style="font-size:12px; color:#3498db; font-weight:bold; text-decoration:underline; cursor:pointer; transition: opacity 0.2s;">🎁 Redeem for '.number_format($cost).' Points</a></div>' . $disclaimer_html;
+                        $disclaimer_html = '';
+                        if ($base_only) {
+                            $disclaimer_html = '<div style="font-size:11px; color:#d35400; font-style:italic; margin-top:4px; font-weight:600;">' . esc_html($note_text) . '</div>';
+                        }
+                        $item_name .= '<div style="margin-top:5px;"><a href="#" class="mc-trigger-cart-redemption" data-key="'.esc_attr($cart_item_key).'" data-product="'.esc_attr($product->get_name()).'" data-cost="'.esc_attr($cost).'" style="font-size:12px; color:#3498db; font-weight:bold; text-decoration:underline; cursor:pointer; transition: opacity 0.2s;">🎁 Redeem for '.number_format($cost).' ' . esc_html($pts_label) . '</a></div>' . $disclaimer_html;
                     } else {
-                        $item_name .= '<div style="margin-top:5px; font-size:12px; color:#999;">🔒 Requires '.number_format($cost).' Points</div>';
+                        $item_name .= '<div style="margin-top:5px; font-size:12px; color:#999;">🔒 Requires '.number_format($cost).' ' . esc_html($pts_label) . '</div>';
                     }
                 }
             }
@@ -267,7 +468,7 @@ class MC_Points_Checkout {
     }
 
     // -----------------------------------------------------------------------------------
-    // PART 3: GROUPED MATH ENGINE (OPTION A) - SOLVES SORTING & NATIVE TAX REPORTING
+    // PART 3: THE NATIVE SUBTRACTION ENGINE (Single Cart Fee)
     // -----------------------------------------------------------------------------------
     public function apply_points_fee( $cart ) {
         if ( is_admin() && ! defined( 'DOING_AJAX' ) ) return;
@@ -288,114 +489,65 @@ class MC_Points_Checkout {
             $redeemed_key = WC()->session->get('mc_redeemed_cart_item');
             if ( $redeemed_key && isset($cart->cart_contents[$redeemed_key]) ) {
                 $cart_item = $cart->cart_contents[$redeemed_key];
+                $qty = isset($cart_item['quantity']) && $cart_item['quantity'] > 0 ? (int) $cart_item['quantity'] : 1;
                 
+                // Fetch the strict base DB price to perfectly deduct against the Subtotal
+                $orig_product = wc_get_product( $cart_item['product_id'] );
+                if ( ! $orig_product ) return;
+
+                $base_price_incl = (float) $orig_product->get_price(); 
+                $is_taxable = $orig_product->is_taxable();
+                $tax_class = $orig_product->get_tax_class();
+
+                $tax_divisor = 1;
+                if ( wc_prices_include_tax() && $is_taxable && class_exists('WC_Tax') ) {
+                    $rates = WC_Tax::get_rates( $tax_class );
+                    if ( !empty($rates) ) {
+                        $tax_divisor += ( (float) reset($rates)['rate'] / 100 );
+                    }
+                }
+
                 $base_val = get_option('mc_pts_prod_base_price_only', 'yes');
                 $base_only = in_array( strtolower( (string) $base_val ), ['yes', 'on', '1', 'true'], true );
 
-                $tax_val = get_option('mc_pts_prod_tax_override', 'yes');
-                $customer_pays_tax = in_array( strtolower( (string) $tax_val ), ['yes', 'on', '1', 'true'], true );
-                
-                $product_obj = $cart_item['data'];
-                
-                // 1. EXTRACT CART PRICE
-                $line_total_incl_tax = $cart_item['line_subtotal'] + $cart_item['line_subtotal_tax'];
-                $qty = isset($cart_item['quantity']) && $cart_item['quantity'] > 0 ? $cart_item['quantity'] : 1;
-                $cart_price = $line_total_incl_tax / $qty; // Subtotal (e.g. 97.00)
-                
-                // 2. CUSTOM MEALCRAFTER HUNTER: Extracts Upgrade Costs & Names securely
+                // Calculate upgrades dynamically to collapse the fee line if 100% Free Mode is ON
                 $upgrade_cost = 0;
-                $upgrade_names = [];
-                if ( isset($cart_item['mc_combo_selections']) && is_array($cart_item['mc_combo_selections']) ) {
+                if ( ! $base_only && isset($cart_item['mc_combo_selections']) && is_array($cart_item['mc_combo_selections']) ) {
                     $math_logic = get_option( 'mc_combo_math_logic', 'on' );
                     $highest_extra = 0;
-                    $highest_name = '';
 
                     if ( $math_logic === 'on' ) {
                         foreach ( $cart_item['mc_combo_selections'] as $sel ) {
-                            $id = is_array($sel) ? (isset($sel['id']) ? $sel['id'] : 0) : $sel;
-                            if ($id) {
-                                $p = wc_get_product( $id );
-                                if ( $p && (float)$p->get_price() > $highest_extra ) {
-                                    $highest_extra = (float)$p->get_price();
-                                    $clean_name = preg_replace('/\s*\(\+?\s*\$?[0-9.]+\)/', '', $p->get_name());
-                                    $highest_name = trim(strip_tags($clean_name));
-                                }
+                            $id = is_array($sel) ? $sel['id'] : $sel;
+                            $p = wc_get_product( $id );
+                            if ( $p && (float)$p->get_price() > $highest_extra ) {
+                                $highest_extra = (float)$p->get_price();
                             }
                         }
-                        if ($highest_extra > 0) {
-                            $upgrade_cost = $highest_extra;
-                            $upgrade_names[] = $highest_name;
-                        }
+                        if ($highest_extra > 0) $upgrade_cost = $highest_extra;
                     } else {
                         foreach ( $cart_item['mc_combo_selections'] as $sel ) {
-                            $id = is_array($sel) ? (isset($sel['id']) ? $sel['id'] : 0) : $sel;
-                            if ($id) {
-                                $p = wc_get_product( $id );
-                                if ( $p ) {
-                                    $price = (float) $p->get_price();
-                                    if ( $price > 0 ) {
-                                        $upgrade_cost += $price;
-                                        $clean_name = preg_replace('/\s*\(\+?\s*\$?[0-9.]+\)/', '', $p->get_name());
-                                        $upgrade_names[] = trim(strip_tags($clean_name));
-                                    }
-                                }
+                            $id = is_array($sel) ? $sel['id'] : $sel;
+                            $p = wc_get_product( $id );
+                            if ( $p && (float)$p->get_price() > 0 ) {
+                                $upgrade_cost += (float)$p->get_price();
                             }
                         }
                     }
                 }
 
-                // 3. CALCULATE TRUE BASE PRICE (e.g. 97 - 5 = 92)
-                $base_price = $cart_price;
-                if ( $base_only && $upgrade_cost > 0 ) {
-                    $base_price = $cart_price - $upgrade_cost; 
-                }
-
-                // ==============================================================
-                // 4. CALCULATE PERFECT TAX & PRE-TAX DISCOUNT
-                // ==============================================================
-                $base_tax_amount = 0;
-                if ( wc_prices_include_tax() ) {
-                    $tax_rates = WC_Tax::get_rates( $product_obj->get_tax_class() );
-                    if ( empty( $tax_rates ) ) {
-                        $base_tax_amount = $base_price - ($base_price / 1.125);
-                    } else {
-                        $taxes = WC_Tax::calc_inclusive_tax( $base_price, $tax_rates );
-                        $base_tax_amount = array_sum( $taxes );
-                    }
-                }
-                
-                // For a customer to pay exactly $15.22, we subtract the EXACT Pre-Tax value of the Base Box!
-                $discount_amount = $base_price - $base_tax_amount; // e.g. 92.00 - 10.22 = 81.78
-
-                // ==============================================================
-                // BUILD THE SINGLE GROUPED LABEL
-                // Clearly explains the math. As a single fee, it will always be visually at the TOP.
-                // ==============================================================
-                $reward_label = 'Loyalty Reward: ' . $product_obj->get_name();
-                
-                if ( $customer_pays_tax ) {
-                    // Explain that they are paying the Tax and Upgrade
-                    $reward_label .= ' (Base Value -' . wc_price($base_price) . ' | Customer Pays ' . wc_price($base_tax_amount) . ' Tax';
-                    if ($base_only && $upgrade_cost > 0 && !empty($upgrade_names)) {
-                        $reward_label .= ' & ' . wc_price($upgrade_cost) . ' Upgrade: ' . implode(', ', $upgrade_names);
-                    }
-                    $reward_label .= ')';
-
-                    // ADD THE SINGLE NON-TAXABLE FEE
-                    // Because it is non-taxable, WooCommerce natively records the full $10.78 
-                    // directly into your Tax Bucket for perfect accounting reports!
-                    $cart->add_fee( $reward_label, -round($discount_amount, 4), false, '' );
-
+                // THE FIX: ONE SINGLE DEDUCTION
+                if ( $base_only ) {
+                    $wipe_inclusive = $base_price_incl * $qty;
+                    $reward_label = 'Loyalty Reward: ' . $orig_product->get_name();
                 } else {
-                    // Explain that it is 100% Free, but they are paying for the Upgrade
-                    if ($base_only && $upgrade_cost > 0 && !empty($upgrade_names)) {
-                        $reward_label .= ' (Customer Pays ' . wc_price($upgrade_cost) . ' Upgrade: ' . implode(', ', $upgrade_names) . ')';
-                    }
-                    
-                    // ADD THE SINGLE TAXABLE FEE
-                    // Passes as TAXABLE so Woo naturally zeroes out the native tax bucket for the free item.
-                    $cart->add_fee( $reward_label, -round($discount_amount, 4), true, $product_obj->get_tax_class() );
+                    // 100% Free - we wipe out the whole thing in a single line, taking off the "(100% Free)" text
+                    $wipe_inclusive = ($base_price_incl + $upgrade_cost) * $qty;
+                    $reward_label = 'Loyalty Reward: ' . $orig_product->get_name();
                 }
+
+                $pre_tax_wipe = $wipe_inclusive / $tax_divisor; 
+                $cart->add_fee( $reward_label, -$pre_tax_wipe, $is_taxable, $tax_class );
             }
         } else {
             $applied = WC()->session->get('mc_points_applied');
@@ -508,13 +660,10 @@ class MC_Points_Checkout {
         // Build Popup Disclaimer
         $base_val = get_option('mc_pts_prod_base_price_only', 'yes');
         $base_only = in_array( strtolower( (string) $base_val ), ['yes', 'on', '1', 'true'], true );
-
-        $tax_val = get_option('mc_pts_prod_tax_override', 'yes');
-        $customer_pays_tax = in_array( strtolower( (string) $tax_val ), ['yes', 'on', '1', 'true'], true );
         
         $disclaimers = [];
         if ($base_only) $disclaimers[] = 'premium upgrades';
-        if ($customer_pays_tax) $disclaimers[] = 'taxes';
+        
         $disclaimer_html = '';
         if (!empty($disclaimers)) {
             $disclaimer_html = '<div style="font-size:12px; color:#d35400; font-style:italic; margin-bottom:20px; font-weight:bold;">* Note: You are responsible for paying ' . implode(' and ', $disclaimers) . '.</div>';
@@ -535,8 +684,6 @@ class MC_Points_Checkout {
                 <p id="mc-pop-desc" style="font-size:15px; line-height:1.5; margin-bottom:20px; color:inherit;"></p>
                 
                 <p style="font-size:13px; color:#e74c3c; font-weight:bold; margin-top:-10px; margin-bottom:15px;">Limit: <?php echo esc_html($max_per_cart); ?> reward redemption(s) per order.</p>
-                
-                <?php echo $disclaimer_html; ?>
 
                 <div style="background:#f9f9f9; padding:15px; border-radius:8px; text-align:left; margin-bottom:20px; font-size:14px; color:#333; border:1px solid #eee;">
                     <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
