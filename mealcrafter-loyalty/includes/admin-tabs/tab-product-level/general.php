@@ -1,70 +1,32 @@
 <?php if ( ! defined( 'ABSPATH' ) ) exit; ?>
 
-<form method="post" action="options.php">
-    <?php settings_fields( 'mc_prod_general_group' ); ?>
-    
-    <div style="margin-bottom:25px;">
-        <p class="description" style="font-size:14px;">Configure the global rules for allowing customers to trade points for specific free items instead of just a generic cash discount.</p>
+<div class="mc-main-content" style="width: 100%; max-width: 900px;">
+    <div style="margin-bottom: 25px;">
+        <h2 style="margin:0 0 5px 0; font-size:22px; color:#1d2327;">Product Level General Options</h2>
+        <p style="margin:0; font-size:13px; color:#646970;">Manage global logic and UI features when users redeem points directly for specific products.</p>
     </div>
 
-    <div class="mc-form-section">
-        <h3>Core Product Redemption</h3>
+    <form method="post" action="options.php">
+        <?php settings_fields( 'mc_prod_general_group' ); ?>
         
-        <div class="mc-toggle-row">
-            <div class="mc-form-info" style="margin:0;">
-                <span class="mc-form-label" style="color:#d63638;">Enable Product-Level Redemption</span>
-                <span class="mc-form-desc">Turn this on to allow customers to buy specific items with points inline at checkout.</span>
-            </div>
-            <label class="mc-toggle-switch">
-                <input type="checkbox" class="mc-reveal-toggle" data-target="#mc-prod-general-wrap" name="mc_pts_prod_enable" value="yes" <?php checked(get_option('mc_pts_prod_enable', 'no'), 'yes'); ?>>
-                <span class="mc-slider"></span>
-            </label>
-        </div>
-
-        <div id="mc-prod-general-wrap" style="<?php echo get_option('mc_pts_prod_enable') === 'yes' ? '' : 'display:none;'; ?>">
+        <div class="mc-form-section mc-rule-card" style="padding:25px; border-left:4px solid #f39c12; margin-bottom: 30px;">
+            <h3 style="margin-top:0; border-bottom:1px solid #eee; padding-bottom:10px; margin-bottom:20px;">Redemption Mechanics</h3>
             
-            <div class="mc-form-row" style="margin-top:20px;">
-                <div class="mc-form-info">
-                    <span class="mc-form-label">Maximum Redemptions Per Cart</span>
-                    <span class="mc-form-desc">Limit how many free items a customer can claim in a single transaction (Leave blank for unlimited).</span>
-                </div>
-                <div class="mc-form-control">
-                    <input type="number" name="mc_pts_prod_max_per_cart" value="<?php echo esc_attr(get_option('mc_pts_prod_max_per_cart', '1')); ?>" style="width:100px;">
-                    <span style="font-weight:600; color:#555; margin-left:10px;">Items</span>
-                </div>
-            </div>
-
-            <div class="mc-form-row">
-                <div class="mc-form-info">
-                    <span class="mc-form-label">Minimum Cart Total Required</span>
-                    <span class="mc-form-desc">Require the customer to spend a certain amount of cash before they can claim a free item.</span>
-                </div>
-                <div class="mc-form-control">
-                    <span style="font-weight:600; color:#555; margin-right:10px;">$</span>
-                    <input type="number" step="0.01" name="mc_pts_prod_min_cart_total" value="<?php echo esc_attr(get_option('mc_pts_prod_min_cart_total', '0.00')); ?>" style="width:100px;">
-                </div>
-            </div>
-
-            <div class="mc-toggle-row" style="margin-top:15px; background:#fffcf5; padding:15px; border-radius:8px; border:1px solid #f6e0b5;">
-                <div class="mc-form-info" style="margin:0;">
-                    <span class="mc-form-label">Disable alongside Coupons</span>
-                    <span class="mc-form-desc">If enabled, customers cannot use points to redeem free items if they have applied a discount coupon to their cart.</span>
+            <div class="mc-toggle-row" style="margin-bottom:20px; display:flex; justify-content:space-between; align-items:center;">
+                <div class="mc-form-info" style="margin:0; max-width: 80%;">
+                    <span class="mc-form-label" style="font-weight:600;">Enable Product Points Redemption</span>
+                    <span class="mc-form-desc" style="display:block; margin-top:4px; font-size:12px; color:#666;">Allow users to redeem points directly for specific products.</span>
                 </div>
                 <label class="mc-toggle-switch">
-                    <input type="checkbox" name="mc_pts_prod_disable_with_coupons" value="yes" <?php checked(get_option('mc_pts_prod_disable_with_coupons', 'no'), 'yes'); ?>>
+                    <input type="checkbox" name="mc_pts_prod_enable" value="yes" <?php checked(get_option('mc_pts_prod_enable', 'no'), 'yes'); ?>>
                     <span class="mc-slider"></span>
                 </label>
             </div>
 
-            <hr style="margin:25px 0; border:0; border-bottom:1px solid #eee;">
-
-            <div class="mc-toggle-row" style="border-bottom:none;">
-                <div class="mc-form-info" style="margin:0;">
-                    <span class="mc-form-label" style="color:#2271b1;">Limit Redemption to Base Price Only</span>
-                    <span class="mc-form-desc">
-                        <strong>Crucial for Variable / Combo / Grouped products.</strong><br> 
-                        If enabled, the points only cover the base price of the item. The customer must pay cash for any premium add-ons (e.g., upgrading to a premium side). If disabled, the entire configured item becomes completely free.
-                    </span>
+            <div class="mc-toggle-row" style="margin-bottom:20px; display:flex; justify-content:space-between; align-items:center;">
+                <div class="mc-form-info" style="margin:0; max-width: 80%;">
+                    <span class="mc-form-label" style="font-weight:600;">Deduct from Base Price Only</span>
+                    <span class="mc-form-desc" style="display:block; margin-top:4px; font-size:12px; color:#666;">If checked, points will only cover the base price, and the customer pays for premium upgrades (like Combo Extras).</span>
                 </div>
                 <label class="mc-toggle-switch">
                     <input type="checkbox" name="mc_pts_prod_base_price_only" value="yes" <?php checked(get_option('mc_pts_prod_base_price_only', 'yes'), 'yes'); ?>>
@@ -72,81 +34,74 @@
                 </label>
             </div>
 
-        </div>
-    </div>
-
-    <div class="mc-form-section" id="mc-prod-audience-wrap" style="<?php echo get_option('mc_pts_prod_enable') === 'yes' ? '' : 'display:none;'; ?>">
-        <h3>Target Audience</h3>
-        
-        <div class="mc-form-row">
-            <div class="mc-form-info"><span class="mc-form-label">Who can use Product-Level redemptions?</span></div>
-            <div class="mc-form-control mc-radio-group">
-                <?php $tgt_user = get_option('mc_pts_prod_target_users', 'all'); ?>
-                <label style="display:block; margin-bottom:8px;"><input type="radio" class="mc-user-target-toggle" name="mc_pts_prod_target_users" value="all" <?php checked($tgt_user, 'all'); ?>> All users</label>
-                <label style="display:block; margin-bottom:8px;"><input type="radio" class="mc-user-target-toggle" name="mc_pts_prod_target_users" value="roles" <?php checked($tgt_user, 'roles'); ?>> Specific user roles</label>
-                <label style="display:block;"><input type="radio" class="mc-user-target-toggle" name="mc_pts_prod_target_users" value="levels" <?php checked($tgt_user, 'levels'); ?>> Users with a specific points level</label>
-            </div>
-            
-            <div class="mc-user-target-roles mc-user-wrap" style="<?php echo $tgt_user === 'roles' ? 'display:block;' : 'display:none;'; ?> margin-top:10px;">
-                <?php 
-                global $wp_roles;
-                $saved_roles = get_option('mc_pts_prod_target_roles', []);
-                if(!is_array($saved_roles)) $saved_roles = [];
-                echo '<select name="mc_pts_prod_target_roles[]" class="mc-select2" multiple="multiple" style="width:100%; max-width:400px;" data-placeholder="Select user roles...">';
-                foreach ( $wp_roles->roles as $key => $r ) {
-                    $selected = in_array($key, $saved_roles) ? 'selected' : '';
-                    echo '<option value="' . esc_attr($key) . '" ' . $selected . '>' . esc_html($r['name']) . '</option>';
-                }
-                echo '</select>';
-                ?>
-            </div>
-
-            <div class="mc-user-target-levels mc-user-wrap" style="<?php echo $tgt_user === 'levels' ? 'display:block;' : 'display:none;'; ?> margin-top:10px;">
-                <?php 
-                $all_levels = get_option('mc_pts_levels', []);
-                $saved_levels = get_option('mc_pts_prod_target_levels', []);
-                if(!is_array($saved_levels)) $saved_levels = [];
-                echo '<select name="mc_pts_prod_target_levels[]" class="mc-select2" multiple="multiple" style="width:100%; max-width:400px;" data-placeholder="Select levels...">';
-                if(is_array($all_levels) && !empty($all_levels)) {
-                    foreach ( $all_levels as $lvl ) {
-                        if(empty($lvl['id'])) continue;
-                        $selected = in_array($lvl['id'], $saved_levels) ? 'selected' : '';
-                        echo '<option value="' . esc_attr($lvl['id']) . '" ' . $selected . '>' . esc_html($lvl['name']) . '</option>';
-                    }
-                } else {
-                    echo '<option disabled>No Levels created yet.</option>';
-                }
-                echo '</select>';
-                ?>
+            <div class="mc-form-row" style="margin-bottom: 20px;">
+                <span class="mc-form-label" style="font-weight: 600; display: block; margin-bottom: 5px;">Max Redemptions Per Cart</span>
+                <input type="number" name="mc_pts_prod_max_per_cart" value="<?php echo esc_attr(get_option('mc_pts_prod_max_per_cart', '1')); ?>" style="width:100px; padding: 6px;">
             </div>
         </div>
-    </div>
 
-    <p class="submit" style="margin-top:20px; padding-top:20px; border-top:1px solid #eee;">
-        <?php submit_button('Save General Settings', 'primary', 'submit', false, ['style' => 'background:#2271b1; border:none; padding:8px 20px; border-radius:4px; font-weight:600; font-size:14px;']); ?>
-    </p>
-</form>
+        <div class="mc-form-section mc-rule-card" style="padding:25px; border-left:4px solid #8e44ad; margin-bottom: 30px;">
+            <h3 style="margin-top:0; border-bottom:1px solid #eee; padding-bottom:10px; margin-bottom:20px;">Product Redemption Modal Design</h3>
+            <p style="color:#666; font-size:13px; margin-bottom:20px;">Customize the confirmation popup that appears when a user clicks the "Redeem" button on a specific catalog item.</p>
 
-<script>
-jQuery(document).ready(function($) {
-    if($.fn.select2) { $('.mc-select2').select2({ allowClear: true }); }
+            <div class="mc-toggle-row" style="margin-bottom:20px; display:flex; justify-content:space-between; align-items:center;">
+                <div class="mc-form-info" style="margin:0; max-width: 80%;">
+                    <span class="mc-form-label" style="font-weight:600;">Enable Product Redemption Modal</span>
+                    <span class="mc-form-desc" style="display:block; margin-top:4px; font-size:12px; color:#666;">If disabled, clicking the redeem button adds the item to cart immediately without asking for confirmation.</span>
+                </div>
+                <label class="mc-toggle-switch">
+                    <input type="checkbox" name="mc_pts_pop_enable" value="yes" <?php checked(get_option('mc_pts_pop_enable', 'yes'), 'yes'); ?>>
+                    <span class="mc-slider"></span>
+                </label>
+            </div>
 
-    $(document).on('change', '.mc-reveal-toggle', function() {
-        let target = $(this).data('target');
-        if($(this).is(':checked')) { 
-            $(target).hide().slideDown(250); 
-            $('#mc-prod-audience-wrap').hide().slideDown(250); 
-        } 
-        else { 
-            $(target).slideUp(250); 
-            $('#mc-prod-audience-wrap').slideUp(250);
-        }
-    });
+            <div class="mc-form-row" style="display:flex; gap:20px; margin-bottom:20px;">
+                <div style="flex:1;">
+                    <span class="mc-form-label" style="font-weight: 600; display: block; margin-bottom: 5px;">Modal Title</span>
+                    <input type="text" name="mc_pts_pop_title" value="<?php echo esc_attr(get_option('mc_pts_pop_title', 'Unlock this Reward?')); ?>" style="width:100%; font-weight:bold; padding: 6px;">
+                </div>
+                <div style="flex:2;">
+                    <span class="mc-form-label" style="font-weight: 600; display: block; margin-bottom: 5px;">Confirmation Description</span>
+                    <input type="text" name="mc_pts_pop_desc" value="<?php echo esc_attr(get_option('mc_pts_pop_desc', 'Are you sure you want to spend {points} points to get this item for free?')); ?>" style="width:100%; padding: 6px;">
+                    <span class="mc-form-desc" style="color:#2271b1; font-size:12px; margin-top: 5px; display: block;">Variables: <code>{points}</code>, <code>{product}</code></span>
+                </div>
+            </div>
 
-    $(document).on('change', '.mc-user-target-toggle', function() {
-        $('.mc-user-wrap').hide();
-        let val = $(this).val();
-        if(val !== 'all') { $('.mc-user-target-' + val).show(); }
-    });
-});
-</script>
+            <div class="mc-form-row" style="display:flex; gap:20px; margin-bottom:20px;">
+                <div style="flex:1;">
+                    <span class="mc-form-label" style="font-weight: 600; display: block; margin-bottom: 5px;">Confirm Button Text</span>
+                    <input type="text" name="mc_pts_pop_btn_yes" value="<?php echo esc_attr(get_option('mc_pts_pop_btn_yes', 'Yes, Unlock It!')); ?>" style="width:100%; padding: 6px;">
+                </div>
+                <div style="flex:1;">
+                    <span class="mc-form-label" style="font-weight: 600; display: block; margin-bottom: 5px;">Cancel Button Text</span>
+                    <input type="text" name="mc_pts_pop_btn_no" value="<?php echo esc_attr(get_option('mc_pts_pop_btn_no', 'Not right now')); ?>" style="width:100%; padding: 6px;">
+                </div>
+            </div>
+
+            <div class="mc-form-row" style="margin-bottom:20px;">
+                <span class="mc-form-label" style="font-weight: 600; display: block; margin-bottom: 5px;">Success Message</span>
+                <input type="text" name="mc_pts_pop_success" value="<?php echo esc_attr(get_option('mc_pts_pop_success', 'Reward successfully added to your cart!')); ?>" style="width:100%; border-color:#2ecc71; padding: 6px;">
+            </div>
+
+            <h4 style="margin:30px 0 15px 0;">Modal Colors</h4>
+            <div class="mc-form-row" style="display:flex; gap:40px; background:#f9f9f9; padding:20px; border-radius:8px; border:1px solid #eee;">
+                <div>
+                    <span class="mc-form-label" style="display: block; margin-bottom: 5px;">Background</span>
+                    <input type="color" name="mc_pts_pop_bg" value="<?php echo esc_attr(get_option('mc_pts_pop_bg', '#ffffff')); ?>" style="height: 35px; width: 60px; padding: 0; cursor: pointer; border: 1px solid #ccc; border-radius: 4px;">
+                </div>
+                <div>
+                    <span class="mc-form-label" style="display: block; margin-bottom: 5px;">Text Color</span>
+                    <input type="color" name="mc_pts_pop_text_color" value="<?php echo esc_attr(get_option('mc_pts_pop_text_color', '#111111')); ?>" style="height: 35px; width: 60px; padding: 0; cursor: pointer; border: 1px solid #ccc; border-radius: 4px;">
+                </div>
+                <div>
+                    <span class="mc-form-label" style="display: block; margin-bottom: 5px;">Button Color</span>
+                    <input type="color" name="mc_pts_pop_btn_color" value="<?php echo esc_attr(get_option('mc_pts_pop_btn_color', '#2ecc71')); ?>" style="height: 35px; width: 60px; padding: 0; cursor: pointer; border: 1px solid #ccc; border-radius: 4px;">
+                </div>
+            </div>
+        </div>
+
+        <p class="submit" style="margin-top:20px; padding-top:20px; border-top:1px solid #eee;">
+            <?php submit_button('Save Product Settings', 'primary', 'submit', false, ['style' => 'background:#2271b1; border:none; padding:8px 20px; border-radius:4px; font-weight:600; font-size:14px;']); ?>
+        </p>
+    </form>
+</div>
