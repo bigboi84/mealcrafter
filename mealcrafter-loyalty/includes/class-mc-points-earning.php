@@ -2,7 +2,7 @@
 /**
  * MealCrafter: Loyalty Points Earning Engine
  * Handles backend awarding logic + Frontend UI Auto-Injections + Extra Points
- * Fixed: Synchronizes table data perfectly with visual meta & Lifetime Tiers!
+ * Fixed: All 100% Extra Earning Triggers (Referrals, Birthdays, Profiles, Milestones) activated!
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;
@@ -10,16 +10,38 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 class MC_Points_Earning {
 
     public function __construct() {
-        // Backend Awarding & Deductions (Hooked dynamically to statuses)
+        // Backend Awarding & Deductions
         add_action( 'woocommerce_order_status_changed', [$this, 'handle_order_status_changes'], 10, 4 );
 
-        // Extra Points System Hooks!
+        // --- THE EXTRA POINTS SYSTEM HOOKS ---
+        
+        // 1. Referral Link Tracker
+        add_action( 'init', [$this, 'track_referral_cookie'] );
+        
+        // 2. Registration & Referral Signup Bonus
         add_action( 'user_register', [$this, 'award_registration_points'] );
+        
+        // 3. Daily Login Bonus
         add_action( 'wp_login', [$this, 'award_login_points'], 10, 2 );
+        
+        // 4. Product Review Bonus
         add_action( 'comment_post', [$this, 'award_review_points'], 10, 3 );
+        
+        // 5. Complete Profile Bonus
+        add_action( 'profile_update', [$this, 'check_profile_completion_points'], 10, 1 );
+        add_action( 'woocommerce_customer_save_address', [$this, 'check_profile_completion_points'], 10, 1 );
+
+        // 6. Birthday Cron Job
+        add_action( 'init', [$this, 'schedule_daily_events'] );
+        add_action( 'mc_loyalty_daily_events', [$this, 'process_birthdays'] );
+
 
         // Frontend Auto-Injections
-        add_action( 'woocommerce_after_add_to_cart_button', [$this, 'display_single_product_earning'], 20 );
+        $custom = get_option('mc_customization_settings', []);
+        $prod_pos = !empty($custom['prod_pos']) ? $custom['prod_pos'] : 'before_cart';
+        $hook = ($prod_pos === 'after_cart') ? 'woocommerce_after_add_to_cart_button' : 'woocommerce_before_add_to_cart_button';
+        
+        add_action( $hook, [$this, 'display_single_product_earning'], 20 );
         add_action( 'woocommerce_after_cart_totals', [$this, 'display_cart_earning'], 20 );
         add_action( 'woocommerce_review_order_after_order_total', [$this, 'display_checkout_earning'], 20 );
 
@@ -28,7 +50,7 @@ class MC_Points_Earning {
     }
 
     /**
-     * CORE SYNC ENGINE: Ensures visual meta, history logs, and lifetime odometers match the database!
+     * CORE SYNC ENGINE
      */
     private function sync_user_balance( $user_id, $points, $reason, $order_id = '-' ) {
         $pts_n = get_user_meta($user_id, '_mc_user_points', true);
@@ -39,13 +61,11 @@ class MC_Points_Earning {
         update_user_meta( $user_id, '_mc_user_points', $new_balance );
         update_user_meta( $user_id, 'mc_points', $new_balance );
 
-        // Add to Lifetime Odometer (For VIP Tiers!) if points are positive
         if ($points > 0) {
             $lifetime = (int) get_user_meta( $user_id, '_mc_lifetime_points', true );
             update_user_meta( $user_id, '_mc_lifetime_points', $lifetime + $points );
         }
 
-        // Add to Frontend History Shortcode
         $history = get_user_meta($user_id, '_mc_points_history', true);
         if (!is_array($history)) $history = [];
         array_unshift($history, [
@@ -59,15 +79,104 @@ class MC_Points_Earning {
         update_user_meta($user_id, '_mc_points_history', array_slice($history, 0, 200));
     }
 
+
     // -----------------------------------------------------------------------------------
-    // EXTRA POINTS ENGINE
+    // ALL EXTRA POINTS LOGIC (Referrals, Profiles, Birthdays, etc.)
     // -----------------------------------------------------------------------------------
+
+    public function track_referral_cookie() {
+        if ( isset($_GET['ref']) && !is_user_logged_in() ) {
+            $ref_id = intval(sanitize_text_field($_GET['ref']));
+            if ( $ref_id > 0 ) {
+                setcookie( 'mc_referral_id', $ref_id, time() + (30 * DAY_IN_SECONDS), COOKIEPATH, COOKIE_DOMAIN );
+            }
+        }
+    }
+
     public function award_registration_points( $user_id ) {
+        // Standard Sign up Bonus
         if ( get_option('mc_pts_extra_registration', 'no') === 'yes' ) {
             $pts = (int) get_option('mc_pts_extra_registration_pts', 0);
             if ( $pts > 0 ) {
-                mc_update_user_points( $user_id, $pts, 'earned', 'Sign Up Bonus' );
+                if ( function_exists('mc_update_user_points') ) { mc_update_user_points( $user_id, $pts, 'earned', 'Sign Up Bonus' ); }
                 $this->sync_user_balance( $user_id, $pts, 'Sign Up Bonus' );
+            }
+        }
+
+        // Referral Signup Bonus (For the Referrer)
+        if ( isset($_COOKIE['mc_referral_id']) ) {
+            $referrer_id = intval($_COOKIE['mc_referral_id']);
+            if ( $referrer_id > 0 && $referrer_id !== $user_id ) {
+                
+                // Stamp the referred user so we can track their first purchase later
+                update_user_meta( $user_id, '_mc_referred_by', $referrer_id );
+                
+                if ( get_option('mc_pts_extra_referral', 'no') === 'yes' ) {
+                    $ref_pts = (int) get_option('mc_pts_extra_referral_pts', 0);
+                    if ( $ref_pts > 0 ) {
+                        if ( function_exists('mc_update_user_points') ) { mc_update_user_points( $referrer_id, $ref_pts, 'earned', 'Referral Sign Up Bonus' ); }
+                        $this->sync_user_balance( $referrer_id, $ref_pts, 'Referral Sign Up Bonus' );
+                    }
+                }
+            }
+        }
+    }
+
+    public function check_profile_completion_points( $user_id ) {
+        if ( get_option('mc_pts_extra_profile', 'no') !== 'yes' ) return;
+        
+        // Prevent double rewarding
+        $has_bonus = get_user_meta( $user_id, '_mc_profile_completed_bonus', true );
+        if ( $has_bonus === 'yes' ) return;
+        
+        $customer = new WC_Customer( $user_id );
+        if ( $customer ) {
+            $fname = $customer->get_first_name();
+            $lname = $customer->get_last_name();
+            $phone = $customer->get_billing_phone();
+            $addr1 = $customer->get_billing_address_1();
+            $city  = $customer->get_billing_city();
+            
+            // If the core details are filled, they earned it!
+            if ( !empty($fname) && !empty($lname) && !empty($phone) && !empty($addr1) && !empty($city) ) {
+                $pts = (int) get_option('mc_pts_extra_profile_pts', 0);
+                if ( $pts > 0 ) {
+                    if ( function_exists('mc_update_user_points') ) { mc_update_user_points( $user_id, $pts, 'earned', 'Completed Profile Bonus' ); }
+                    $this->sync_user_balance( $user_id, $pts, 'Completed Profile Bonus' );
+                    update_user_meta( $user_id, '_mc_profile_completed_bonus', 'yes' );
+                }
+            }
+        }
+    }
+
+    public function schedule_daily_events() {
+        if ( ! wp_next_scheduled( 'mc_loyalty_daily_events' ) ) {
+            wp_schedule_event( time(), 'daily', 'mc_loyalty_daily_events' );
+        }
+    }
+
+    public function process_birthdays() {
+        if ( get_option('mc_pts_extra_birthday', 'no') !== 'yes' ) return;
+        
+        $pts = (int) get_option('mc_pts_extra_birthday_pts', 0);
+        if ( $pts <= 0 ) return;
+
+        global $wpdb;
+        $today_md = date('m-d');
+        $current_year = date('Y');
+        
+        // Find users with _mc_birthdate (YYYY-MM-DD) matching today
+        $users = $wpdb->get_col( $wpdb->prepare("
+            SELECT user_id FROM {$wpdb->usermeta} 
+            WHERE meta_key = '_mc_birthdate' AND meta_value LIKE %s
+        ", '%-' . $today_md) );
+        
+        foreach ( $users as $uid ) {
+            $rewarded_year = get_user_meta( $uid, '_mc_birthday_rewarded_year', true );
+            if ( $rewarded_year !== $current_year ) {
+                if ( function_exists('mc_update_user_points') ) { mc_update_user_points( $uid, $pts, 'earned', 'Happy Birthday Bonus!' ); }
+                $this->sync_user_balance( $uid, $pts, 'Happy Birthday Bonus!' );
+                update_user_meta( $uid, '_mc_birthday_rewarded_year', $current_year );
             }
         }
     }
@@ -79,7 +188,7 @@ class MC_Points_Earning {
                 $last_login = get_user_meta( $user->ID, '_mc_last_login_points', true );
                 $today = current_time('Ymd');
                 if ( $last_login !== $today ) {
-                    mc_update_user_points( $user->ID, $pts, 'earned', 'Daily Login Bonus' );
+                    if ( function_exists('mc_update_user_points') ) { mc_update_user_points( $user->ID, $pts, 'earned', 'Daily Login Bonus' ); }
                     $this->sync_user_balance( $user->ID, $pts, 'Daily Login Bonus' );
                     update_user_meta( $user->ID, '_mc_last_login_points', $today );
                 }
@@ -95,7 +204,7 @@ class MC_Points_Earning {
                 if ( $pts > 0 ) {
                     $has_reviewed = get_user_meta( $commentdata['user_id'], '_mc_reviewed_' . $post->ID, true );
                     if ( !$has_reviewed ) {
-                        mc_update_user_points( $commentdata['user_id'], $pts, 'earned', 'Product Review Bonus' );
+                        if ( function_exists('mc_update_user_points') ) { mc_update_user_points( $commentdata['user_id'], $pts, 'earned', 'Product Review Bonus' ); }
                         $this->sync_user_balance( $commentdata['user_id'], $pts, 'Product Review Bonus' );
                         update_user_meta( $commentdata['user_id'], '_mc_reviewed_' . $post->ID, 'yes' );
                     }
@@ -105,7 +214,7 @@ class MC_Points_Earning {
     }
 
     // -----------------------------------------------------------------------------------
-    // SETTINGS FETCHERS
+    // SETTINGS FETCHERS & MATH ENGINE
     // -----------------------------------------------------------------------------------
     private function get_setting( $key, $default ) {
         return get_option( $key, $default );
@@ -116,16 +225,10 @@ class MC_Points_Earning {
         return $rounding === 'up' ? ceil( $value ) : floor( $value );
     }
 
-    private function calculate_raw_points( $value ) {
+    private function get_conversion_rate() {
         $spent = (float) $this->get_setting( 'mc_pts_earn_currency', 100 );
         $earn = (float) $this->get_setting( 'mc_pts_earn_points', 20 );
-        $conversion_rate = $spent > 0 ? ($earn / $spent) : 0;
-        return $this->apply_rounding( $value * $conversion_rate );
-    }
-
-    private function is_user_currently_redeeming() {
-        if ( ! WC()->session ) return false;
-        return WC()->session->get('mc_redeemed_cart_item') || WC()->session->get('mc_points_applied');
+        return $spent > 0 ? ($earn / $spent) : 0;
     }
 
     private function calculate_dynamic_upgrade_cost( $cart_item ) {
@@ -207,7 +310,6 @@ class MC_Points_Earning {
         return $upgrade_cost_inclusive / $tax_divisor;
     }
 
-
     // -----------------------------------------------------------------------------------
     // FRONTEND DISPLAY ENGINE
     // -----------------------------------------------------------------------------------
@@ -217,10 +319,12 @@ class MC_Points_Earning {
 
         $custom = get_option('mc_customization_settings', []);
         
+        if ( ($custom['prod_show'] ?? 'yes') !== 'yes' ) return;
+
         $type = $product->get_type();
-        if ( $type === 'mc_combo' && ($custom['earn_show_combo'] ?? 'yes') !== 'yes' ) return;
-        if ( $type === 'mc_grouped' && ($custom['earn_show_grouped'] ?? 'yes') !== 'yes' ) return;
-        if ( ! in_array($type, ['mc_combo', 'mc_grouped']) && ($custom['earn_show_single'] ?? 'yes') !== 'yes' ) return;
+        if ( $type === 'mc_combo' && ($custom['earn_show_combo'] ?? 'yes') === 'no' ) return;
+        if ( $type === 'mc_grouped' && ($custom['earn_show_grouped'] ?? 'yes') === 'no' ) return;
+        if ( ! in_array($type, ['mc_combo', 'mc_grouped']) && ($custom['earn_show_single'] ?? 'yes') === 'no' ) return;
 
         if ( get_post_meta( $product->get_id(), '_mc_points_exempt_earn', true ) === 'yes' ) return;
         if ( $this->get_setting('mc_pts_exclude_sale', 'no') === 'yes' && $product->is_on_sale() ) return;
@@ -232,40 +336,59 @@ class MC_Points_Earning {
             $price = wc_get_price_excluding_tax( $product );
         }
 
-        $points = $this->calculate_raw_points( $price );
+        $conv = $this->get_conversion_rate();
+        $points = $this->apply_rounding( $price * $conv );
         
         if ( $points > 0 ) {
-            $msg_format = $custom['earn_msg_product'] ?? 'Earn {points} Points!';
+            $msg_format = !empty($custom['prod_msg']) ? $custom['prod_msg'] : 'Buy this product and earn {points} Points!';
             $msg = str_replace( '{points}', number_format($points), $msg_format );
-            $color = esc_attr( $custom['earn_color'] ?? '#2ecc71' );
             
-            echo '<div class="mc-earning-msg mc-earning-product" data-base-points="'.esc_attr($points).'" data-format="'.esc_attr($msg_format).'" style="display:inline-block; margin-left: 15px; font-size: 14px; font-weight: 800; color: ' . $color . ';">' . wp_kses_post( $msg ) . '</div>';
+            $lbl = !empty($custom['lbl_plural']) ? $custom['lbl_plural'] : 'Points';
+            $msg = str_replace( '{points_label}', $lbl, $msg );
+
+            $color = esc_attr( $custom['prod_color_text'] ?? '#2271b1' );
+            $bg = esc_attr( $custom['prod_color_bg'] ?? '#eaf2fa' );
+            
+            echo '<div class="mc-earning-msg mc-earning-product" data-base-points="'.esc_attr($points).'" data-format="'.esc_attr($msg_format).'" style="display:inline-block; margin-top: 10px; margin-bottom: 10px; padding: 8px 15px; border-radius: 4px; background:'. $bg .'; font-size: 14px; font-weight: 800; color: ' . $color . ';">' . wp_kses_post( $msg ) . '</div>';
         }
     }
 
     public function display_cart_earning() {
         $custom = get_option('mc_customization_settings', []);
-        if ( ($custom['earn_show_cart'] ?? 'yes') !== 'yes' ) return;
-        $this->render_checkout_cart_earning_msg( $custom, 'earn_msg_cart', 'mc-earning-cart' );
+        if ( ($custom['cart_show'] ?? 'yes') !== 'yes' ) return;
+        $this->render_checkout_cart_earning_msg( $custom, 'cart_msg', 'mc-earning-cart' );
     }
 
     public function display_checkout_earning() {
         $custom = get_option('mc_customization_settings', []);
-        if ( ($custom['earn_show_checkout'] ?? 'yes') !== 'yes' ) return;
-        $this->render_checkout_cart_earning_msg( $custom, 'earn_msg_checkout', 'mc-earning-checkout' );
+        if ( ($custom['checkout_show'] ?? 'yes') !== 'yes' ) return;
+        $this->render_checkout_cart_earning_msg( $custom, 'checkout_msg', 'mc-earning-checkout' );
     }
 
     private function render_checkout_cart_earning_msg( $custom, $msg_key, $css_class ) {
         if ( ! WC()->cart || WC()->cart->is_empty() ) return;
+
+        $disable_earn_on_redeem = get_option('mc_pts_disable_earn_on_redeem', 'no') === 'yes';
+        $redeemed_key = WC()->session->get('mc_redeemed_cart_item');
+        $pts_applied = WC()->session->get('mc_points_applied');
+
+        if ( $disable_earn_on_redeem && ( $redeemed_key || $pts_applied ) ) {
+            return; 
+        }
 
         $basis = $this->get_setting('mc_earn_basis', 'subtotal_pre');
         $exclude_sale = $this->get_setting('mc_pts_exclude_sale', 'no') === 'yes';
         $deduct_coupons = $this->get_setting('mc_pts_exclude_coupons', 'yes') === 'yes';
         $earn_on_paid_upgrades = get_option('mc_pts_extra_earn_on_paid_upgrades', 'no') === 'yes';
         
-        $total_points = 0;
+        $base_val = get_option('mc_pts_prod_base_price_only', 'yes');
+        $base_only = in_array( strtolower( (string) $base_val ), ['yes', 'on', '1', 'true'], true );
+
+        $redeem_label = !empty($custom['lbl_btn_redeem']) ? strtolower($custom['lbl_btn_redeem']) : 'points discount';
+
+        $conv = $this->get_conversion_rate();
+        $raw_points = 0;
         $grand_val = 0;
-        $redeemed_key = WC()->session->get('mc_redeemed_cart_item');
 
         foreach ( WC()->cart->get_cart() as $cart_item_key => $cart_item ) {
             $product = $cart_item['data'];
@@ -274,15 +397,14 @@ class MC_Points_Earning {
             $qty = isset($cart_item['quantity']) && $cart_item['quantity'] > 0 ? (int) $cart_item['quantity'] : 1;
             
             if ( $redeemed_key === $cart_item_key ) {
-                if ( $earn_on_paid_upgrades ) {
+                if ( $earn_on_paid_upgrades && $base_only ) {
                     $upgrade_cost_incl = $this->calculate_dynamic_upgrade_cost( $cart_item );
                     if ( $upgrade_cost_incl > 0 ) {
                         $earnable_val = $this->get_earnable_upgrade_value( $product, $upgrade_cost_incl );
                         if ( $basis === 'grand_total' ) {
                             $grand_val += ($earnable_val * $qty);
                         } else {
-                            $pts_on_upgrade = $this->calculate_raw_points( $earnable_val );
-                            $total_points += ($pts_on_upgrade * $qty);
+                            $raw_points += ($earnable_val * $qty * $conv);
                         }
                     }
                 }
@@ -296,8 +418,7 @@ class MC_Points_Earning {
 
             if ( $basis === 'unit_pre' ) {
                 $item_val = wc_get_price_excluding_tax( $product );
-                $pts = $this->calculate_raw_points( $item_val );
-                $total_points += ($pts * $qty);
+                $raw_points += ($item_val * $qty * $conv);
                 continue; 
             }
 
@@ -310,7 +431,7 @@ class MC_Points_Earning {
             if ( $basis === 'grand_total' ) {
                 $grand_val += $item_val;
             } else {
-                $total_points += $this->calculate_raw_points( $item_val );
+                $raw_points += ($item_val * $conv);
             }
         }
 
@@ -318,20 +439,26 @@ class MC_Points_Earning {
             $shipping = WC()->cart->get_shipping_total() + WC()->cart->get_shipping_tax();
             $grand_val += $shipping;
             foreach ( WC()->cart->get_fees() as $fee ) {
-                if ( strpos( strtolower($fee->name), 'loyalty reward:' ) !== false ) continue;
+                $fee_name = strtolower($fee->name);
+                if ( strpos( $fee_name, 'loyalty reward:' ) !== false || strpos( $fee_name, $redeem_label ) !== false ) continue;
+                
                 $grand_val += $fee->total + $fee->tax;
             }
             if ($grand_val > 0) {
-                $total_points += $this->calculate_raw_points( $grand_val );
+                $raw_points += ($grand_val * $conv);
             }
         } else {
             foreach ( WC()->cart->get_fees() as $fee ) {
-                if ( strpos( strtolower($fee->name), 'loyalty reward:' ) !== false ) continue;
+                $fee_name = strtolower($fee->name);
+                if ( strpos( $fee_name, 'loyalty reward:' ) !== false || strpos( $fee_name, $redeem_label ) !== false ) continue;
+                
                 $fee_val = $fee->total;
                 if ( $basis === 'subtotal_post' ) $fee_val += $fee->tax;
-                $total_points += $this->calculate_raw_points( $fee_val ); 
+                $raw_points += ($fee_val * $conv); 
             }
         }
+
+        $total_points = $this->apply_rounding($raw_points);
 
         if ( get_option('mc_pts_extra_cart', 'no') === 'yes' ) {
             $threshold = (float) get_option('mc_pts_extra_cart_threshold', 0);
@@ -344,16 +471,19 @@ class MC_Points_Earning {
 
         if ( $total_points <= 0 ) return;
 
-        if ( $total_points > 0 ) {
-            $msg = $custom[$msg_key] ?? 'Complete this order to earn {points} Points!';
-            $msg = str_replace( '{points}', number_format($total_points), $msg );
-            $color = esc_attr( $custom['earn_color'] ?? '#2ecc71' );
+        $fallback_msg = 'Complete this order to earn {points} Points!';
+        $msg = !empty($custom[$msg_key]) ? $custom[$msg_key] : $fallback_msg;
+        $msg = str_replace( '{points}', number_format($total_points), $msg );
+        
+        $lbl = !empty($custom['lbl_plural']) ? $custom['lbl_plural'] : 'Points';
+        $msg = str_replace( '{points_label}', $lbl, $msg );
 
-            if ( $css_class === 'mc-earning-checkout' ) {
-                echo '<tr class="' . esc_attr($css_class) . '"><th>Loyalty Points</th><td data-title="Loyalty Points"><strong style="color: ' . $color . ';">' . wp_kses_post( $msg ) . '</strong></td></tr>';
-            } else {
-                echo '<div class="' . esc_attr($css_class) . '" style="margin-top: 15px; padding: 15px; background: #fdfbf7; border: 2px dashed ' . $color . '; border-radius: 8px; text-align: center; font-weight: bold; color: #333;">' . wp_kses_post( $msg ) . '</div>';
-            }
+        $color = esc_attr( $custom['earn_color'] ?? '#2ecc71' );
+
+        if ( $css_class === 'mc-earning-checkout' ) {
+            echo '<tr class="' . esc_attr($css_class) . '"><th>Loyalty Points</th><td data-title="Loyalty Points"><strong style="color: ' . $color . ';">' . wp_kses_post( $msg ) . '</strong></td></tr>';
+        } else {
+            echo '<div class="' . esc_attr($css_class) . '" style="margin-top: 15px; padding: 15px; background: #fdfbf7; border: 2px dashed ' . $color . '; border-radius: 8px; text-align: center; font-weight: bold; color: #333;">' . wp_kses_post( $msg ) . '</div>';
         }
     }
 
@@ -410,12 +540,70 @@ class MC_Points_Earning {
         $user_id = $order->get_user_id();
         if ( ! $user_id || $order->get_meta( '_mc_points_awarded' ) === 'yes' ) return;
 
+        // --- TRIGGER EXTRA POINTS EVEN IF CART IS $0 ---
+        if ( $order->get_meta('_mc_extra_points_checked') !== 'yes' ) {
+            
+            // 1. Order Milestones (First Order / Every Order Bonus)
+            if ( get_option('mc_pts_extra_orders', 'no') === 'yes' ) {
+                $pts = (int) get_option('mc_pts_extra_orders_pts', 0);
+                $repeat = get_option('mc_pts_extra_orders_repeat', 'yes'); 
+                $order_count = wc_get_customer_order_count( $user_id );
+                
+                if ( $pts > 0 ) {
+                    if ( $repeat === 'yes' || $order_count === 1 ) {
+                        $reason = ($order_count === 1) ? 'First Order Bonus' : 'Order Milestone Bonus';
+                        if ( function_exists('mc_update_user_points') ) { mc_update_user_points( $user_id, $pts, 'earned', $reason, $order->get_id() ); }
+                        $this->sync_user_balance( $user_id, $pts, $reason, $order->get_id() );
+                        $order->add_order_note( sprintf( 'MealCrafter Loyalty: Awarded %s %s points.', $pts, $reason ) );
+                    }
+                }
+            }
+
+            // 2. Referral Purchases (Award original referrer on referred user's FIRST purchase)
+            $referrer_id = get_user_meta( $user_id, '_mc_referred_by', true );
+            $referral_rewarded = get_user_meta( $user_id, '_mc_referral_purchase_rewarded', true );
+            
+            if ( $referrer_id && !$referral_rewarded && get_option('mc_pts_extra_ref_purchase', 'no') === 'yes' ) {
+                $ref_pts = (int) get_option('mc_pts_extra_ref_purchase_pts', 0);
+                if ( $ref_pts > 0 ) {
+                    if ( function_exists('mc_update_user_points') ) { mc_update_user_points( $referrer_id, $ref_pts, 'earned', 'Referral First Purchase Bonus' ); }
+                    $this->sync_user_balance( $referrer_id, $ref_pts, 'Referral First Purchase Bonus' );
+                    update_user_meta( $user_id, '_mc_referral_purchase_rewarded', 'yes' );
+                }
+            }
+
+            $order->update_meta_data('_mc_extra_points_checked', 'yes');
+            $order->save();
+        }
+
+
+        // --- STANDARD CART MATH ---
+        $custom = get_option('mc_customization_settings', []);
+        $redeem_label = !empty($custom['lbl_btn_redeem']) ? strtolower($custom['lbl_btn_redeem']) : 'points discount';
+
+        $disable_earn = get_option('mc_pts_disable_earn_on_redeem', 'no') === 'yes';
+        $is_redeeming = false;
+        foreach ( $order->get_items() as $item ) {
+            if ( $item->get_meta( '_mc_is_redeemed' ) === 'yes' ) { $is_redeeming = true; break; }
+        }
+        foreach ( $order->get_fees() as $fee ) {
+            $fee_name = strtolower($fee->get_name());
+            if ( $fee_name === $redeem_label || strpos( $fee_name, 'loyalty reward:' ) !== false ) {
+                $is_redeeming = true; break;
+            }
+        }
+        if ( $disable_earn && $is_redeeming ) return;
+
         $basis = $this->get_setting('mc_earn_basis', 'subtotal_pre');
         $exclude_sale = $this->get_setting('mc_pts_exclude_sale', 'no') === 'yes';
         $deduct_coupons = $this->get_setting('mc_pts_exclude_coupons', 'yes') === 'yes';
         $earn_on_paid_upgrades = get_option('mc_pts_extra_earn_on_paid_upgrades', 'no') === 'yes';
         
-        $total_points = 0;
+        $base_val = get_option('mc_pts_prod_base_price_only', 'yes');
+        $base_only = in_array( strtolower( (string) $base_val ), ['yes', 'on', '1', 'true'], true );
+
+        $conv = $this->get_conversion_rate();
+        $raw_points = 0;
         $grand_val = 0;
 
         foreach ( $order->get_items() as $item_id => $item ) {
@@ -425,15 +613,14 @@ class MC_Points_Earning {
             $qty = (int) $item->get_quantity();
 
             if ( $item->get_meta( '_mc_is_redeemed' ) === 'yes' ) {
-                if ( $earn_on_paid_upgrades ) {
+                if ( $earn_on_paid_upgrades && $base_only ) {
                     $upgrade_cost_incl = $this->calculate_dynamic_upgrade_cost_for_order_item( $item ); 
                     if ( $upgrade_cost_incl > 0 ) {
                         $earnable_val = $this->get_earnable_upgrade_value( $product, $upgrade_cost_incl );
                         if ( $basis === 'grand_total' ) {
                             $grand_val += ($earnable_val * $qty);
                         } else {
-                            $pts_on_upgrade = $this->calculate_raw_points( $earnable_val );
-                            $total_points += ($pts_on_upgrade * $qty);
+                            $raw_points += ($earnable_val * $qty * $conv);
                         }
                     }
                 }
@@ -445,8 +632,7 @@ class MC_Points_Earning {
 
             if ( $basis === 'unit_pre' ) {
                 $price = wc_get_price_excluding_tax( $product );
-                $pts = $this->calculate_raw_points( $price );
-                $total_points += ($pts * $qty);
+                $raw_points += ($price * $qty * $conv);
                 continue;
             }
 
@@ -459,7 +645,7 @@ class MC_Points_Earning {
             if ( $basis === 'grand_total' ) {
                 $grand_val += $item_val;
             } else {
-                $total_points += $this->calculate_raw_points( $item_val );
+                $raw_points += ($item_val * $conv);
             }
         }
 
@@ -467,20 +653,26 @@ class MC_Points_Earning {
             $shipping_total = (float) $order->get_shipping_total() + (float) $order->get_shipping_tax();
             $grand_val += $shipping_total;
             foreach( $order->get_fees() as $fee ) {
-                if ( strpos( strtolower($fee->get_name()), 'loyalty reward:' ) !== false ) continue;
+                $fee_name = strtolower($fee->get_name());
+                if ( strpos( $fee_name, 'loyalty reward:' ) !== false || strpos( $fee_name, $redeem_label ) !== false ) continue;
+                
                 $grand_val += ((float)$fee->get_total() + (float)$fee->get_total_tax());
             }
             if ($grand_val > 0) {
-                $total_points += $this->calculate_raw_points( $grand_val );
+                $raw_points += ($grand_val * $conv);
             }
         } else {
             foreach( $order->get_fees() as $fee ) {
-                if ( strpos( strtolower($fee->get_name()), 'loyalty reward:' ) !== false ) continue;
+                $fee_name = strtolower($fee->get_name());
+                if ( strpos( $fee_name, 'loyalty reward:' ) !== false || strpos( $fee_name, $redeem_label ) !== false ) continue;
+                
                 $fee_val = (float) $fee->get_total();
                 if ( $basis === 'subtotal_post' ) $fee_val += (float) $fee->get_total_tax();
-                $total_points += $this->calculate_raw_points( $fee_val ); 
+                $raw_points += ($fee_val * $conv); 
             }
         }
+
+        $total_points = $this->apply_rounding($raw_points);
 
         if ( get_option('mc_pts_extra_cart', 'no') === 'yes' ) {
             $threshold = (float) get_option('mc_pts_extra_cart_threshold', 0);
@@ -495,16 +687,14 @@ class MC_Points_Earning {
 
         if ( $total_points <= 0 ) return;
 
-        if ( $total_points > 0 ) {
-            $reason = sprintf( 'Earned from Order #%s', $order->get_order_number() );
-            mc_update_user_points( $user_id, $total_points, 'earned', $reason, $order->get_id() );
-            $this->sync_user_balance( $user_id, $total_points, $reason, $order->get_id() );
+        $reason = sprintf( 'Earned from Order #%s', $order->get_order_number() );
+        if ( function_exists('mc_update_user_points') ) { mc_update_user_points( $user_id, $total_points, 'earned', $reason, $order->get_id() ); }
+        $this->sync_user_balance( $user_id, $total_points, $reason, $order->get_id() );
 
-            $order->update_meta_data( '_mc_points_awarded', 'yes' );
-            $order->update_meta_data( '_mc_points_earned_amount', $total_points );
-            $order->add_order_note( sprintf( 'MealCrafter Loyalty: Awarded %s points.', number_format( $total_points ) ) );
-            $order->save();
-        }
+        $order->update_meta_data( '_mc_points_awarded', 'yes' );
+        $order->update_meta_data( '_mc_points_earned_amount', $total_points );
+        $order->add_order_note( sprintf( 'MealCrafter Loyalty: Awarded %s points.', number_format( $total_points ) ) );
+        $order->save();
     }
 
     private function deduct_points_for_refund_or_cancel( $order, $context ) {
@@ -515,7 +705,7 @@ class MC_Points_Earning {
         
         if ( $points_to_deduct > 0 ) {
             $reason = sprintf( 'Points reversed due to %s on Order #%s', $context, $order->get_order_number() );
-            mc_update_user_points( $user_id, -$points_to_deduct, 'adjusted', $reason, $order->get_id() );
+            if ( function_exists('mc_update_user_points') ) { mc_update_user_points( $user_id, -$points_to_deduct, 'adjusted', $reason, $order->get_id() ); }
             $this->sync_user_balance( $user_id, -$points_to_deduct, $reason, $order->get_id() );
 
             $order->update_meta_data( '_mc_points_awarded', $context );
@@ -540,7 +730,7 @@ class MC_Points_Earning {
 
         if ( $points_spent > 0 ) {
             $reason = sprintf( 'Points restored due to refunded Order #%s', $order->get_order_number() );
-            mc_update_user_points( $user_id, $points_spent, 'adjusted', $reason, $order->get_id() );
+            if ( function_exists('mc_update_user_points') ) { mc_update_user_points( $user_id, $points_spent, 'adjusted', $reason, $order->get_id() ); }
             $this->sync_user_balance( $user_id, $points_spent, $reason, $order->get_id() );
 
             $order->update_meta_data( '_mc_points_restored', 'yes' );
