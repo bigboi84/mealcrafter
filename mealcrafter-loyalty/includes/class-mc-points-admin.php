@@ -17,7 +17,6 @@ class MC_Points_Admin {
                 wp_enqueue_script('selectWoo');
             }
         });
-        
         add_action( 'woocommerce_product_options_general_product_data', [$this, 'add_product_point_fields'] );
         add_action( 'woocommerce_process_product_meta', [$this, 'save_product_point_fields'] );
     }
@@ -25,7 +24,6 @@ class MC_Points_Admin {
     public function register_global_settings() {
         register_setting('mc_loyalty_options_group', 'mc_earn_basis'); 
 
-        // ALL YOUR ORIGINAL SETTINGS RESTORED
         register_setting('mc_loyalty_options_group', 'mc_pts_assign_type');
         register_setting('mc_loyalty_options_group', 'mc_pts_assign_roles');
         register_setting('mc_loyalty_options_group', 'mc_pts_specific_roles'); 
@@ -36,7 +34,7 @@ class MC_Points_Admin {
         register_setting('mc_loyalty_options_group', 'mc_pts_assign_guests'); 
         register_setting('mc_loyalty_options_group', 'mc_pts_assign_new_registered'); 
         register_setting('mc_loyalty_options_group', 'mc_pts_order_status'); 
-        register_setting('mc_loyalty_options_group', 'mc_pts_exclude_sale'); 
+        register_setting('mc_loyalty_options_group', 'mc_pts_exclude_sale');
         register_setting('mc_loyalty_options_group', 'mc_pts_exclude_coupons'); 
         register_setting('mc_loyalty_options_group', 'mc_pts_remove_cancelled'); 
         register_setting('mc_loyalty_options_group', 'mc_pts_remove_refunded'); 
@@ -46,7 +44,7 @@ class MC_Points_Admin {
         register_setting('mc_loyalty_options_group', 'mc_pts_rounding'); 
         register_setting('mc_loyalty_options_group', 'mc_pts_expiration_enabled'); 
         register_setting('mc_loyalty_options_group', 'mc_pts_expiration_time'); 
-        register_setting('mc_loyalty_options_group', 'mc_pts_expiration_type'); 
+        register_setting('mc_loyalty_options_group', 'mc_pts_expiration_type');
         register_setting('mc_loyalty_options_group', 'mc_pts_rules'); 
         
         register_setting('mc_loyalty_options_group', 'mc_pts_extra_registration');
@@ -57,11 +55,21 @@ class MC_Points_Admin {
         register_setting('mc_loyalty_options_group', 'mc_pts_extra_profile_pts');
         register_setting('mc_loyalty_options_group', 'mc_pts_extra_birthday');
         register_setting('mc_loyalty_options_group', 'mc_pts_extra_birthday_pts');
-        register_setting('mc_loyalty_options_group', 'mc_pts_extra_referral');
-        register_setting('mc_loyalty_options_group', 'mc_pts_extra_referral_pts');
-        register_setting('mc_loyalty_options_group', 'mc_pts_extra_referral_revoke');
-        register_setting('mc_loyalty_options_group', 'mc_pts_extra_ref_purchase');
-        register_setting('mc_loyalty_options_group', 'mc_pts_extra_ref_purchase_pts');
+        
+        // Referral Settings
+        register_setting('mc_loyalty_options_group', 'mc_ref_enable');
+        register_setting('mc_loyalty_options_group', 'mc_ref_prefix');
+        register_setting('mc_loyalty_options_group', 'mc_ref_referrer_pts');
+        register_setting('mc_loyalty_options_group', 'mc_ref_referee_pts');
+        register_setting('mc_loyalty_options_group', 'mc_ref_fraud_ip');
+        register_setting('mc_loyalty_options_group', 'mc_ref_require_approval');
+        register_setting('mc_loyalty_options_group', 'mc_ref_admin_email');
+        register_setting('mc_loyalty_options_group', 'mc_ref_custom_role_enable');
+        register_setting('mc_loyalty_options_group', 'mc_ref_custom_role_name');
+        
+        // Offers Settings
+        register_setting('mc_loyalty_options_group', 'mc_offers_enable');
+        
         register_setting('mc_loyalty_options_group', 'mc_pts_extra_reviews');
         register_setting('mc_loyalty_options_group', 'mc_pts_extra_reviews_pts');
         register_setting('mc_loyalty_options_group', 'mc_pts_extra_orders');
@@ -94,6 +102,7 @@ class MC_Points_Admin {
         register_setting('mc_loyalty_options_group', 'mc_pts_redeem_max_discount');
         register_setting('mc_loyalty_options_group', 'mc_pts_redeem_min_cart');
         register_setting('mc_loyalty_options_group', 'mc_pts_redeem_min_discount');
+        
         register_setting('mc_loyalty_options_group', 'mc_pts_allow_coupon_generation');
         register_setting('mc_loyalty_options_group', 'mc_pts_coupon_limits_enable');
         register_setting('mc_loyalty_options_group', 'mc_pts_coupon_min');
@@ -102,7 +111,6 @@ class MC_Points_Admin {
         register_setting('mc_loyalty_options_group', 'mc_pts_coupon_expiry_days');
         register_setting('mc_loyalty_options_group', 'mc_pts_redeem_rules');
 
-        // REGULAR PRODUCT LEVEL SETTINGS
         register_setting('mc_prod_general_group', 'mc_pts_prod_enable');
         register_setting('mc_prod_general_group', 'mc_pts_prod_max_per_cart');
         register_setting('mc_prod_general_group', 'mc_pts_prod_min_cart_total');
@@ -112,7 +120,6 @@ class MC_Points_Admin {
         register_setting('mc_prod_general_group', 'mc_pts_prod_base_price_only');
         register_setting('mc_prod_general_group', 'mc_pts_prod_tax_override');
 
-        // NEW: MODAL POPUP SETTINGS RESTORED TO PRODUCT LEVEL
         register_setting('mc_prod_general_group', 'mc_pts_pop_enable');
         register_setting('mc_prod_general_group', 'mc_pts_pop_title');
         register_setting('mc_prod_general_group', 'mc_pts_pop_desc');
@@ -123,7 +130,6 @@ class MC_Points_Admin {
         register_setting('mc_prod_general_group', 'mc_pts_pop_btn_color');
         register_setting('mc_prod_general_group', 'mc_pts_pop_text_color');
         
-        // NEW: EARN ON PAID UPGRADES SETTING
         register_setting('mc_loyalty_options_group', 'mc_pts_extra_earn_on_paid_upgrades');
 
         register_setting('mc_prod_bulk_group', 'mc_pts_bulk_costs');
@@ -144,7 +150,8 @@ class MC_Points_Admin {
     }
 
     public function render_loyalty_settings() {
-        $current_tab = isset($_GET['tab']) ? sanitize_text_field($_GET['tab']) : 'customers';
+        $current_tab = isset($_GET['tab']) ?
+        sanitize_text_field($_GET['tab']) : 'customers';
 
         $tabs = [
             'customers'     => 'Customers Points',
@@ -153,10 +160,10 @@ class MC_Points_Admin {
             'product_level' => 'Product-Level',
             'catalog'       => 'Reward Catalog',
             'customization' => 'Customization',
-            'referrals'     => 'Referral Program', // Added Referral Tab
+            'offers'        => 'Offers & Coupons', // <--- Added Offers Tab
+            'referrals'     => 'Referral Program',
             'emails'        => 'Emails'
         ];
-
         ?>
         <style>
             .select2-container { width: 100% !important; z-index: 99999 !important; }
@@ -215,7 +222,7 @@ class MC_Points_Admin {
             
             .select2-search--dropdown { padding: 10px !important; background: #fff !important; }
             .select2-search__field { 
-                border: 1px solid #ccc !important; 
+                border: 1px solid #ccc !important;
                 border-radius: 4px !important; 
                 padding: 8px !important; 
                 background: #fff !important;
@@ -237,7 +244,7 @@ class MC_Points_Admin {
                 color: #999 !important;
             }
             .select2-results__option--highlighted[aria-selected] {
-                background-color: #007cba !important; 
+                background-color: #007cba !important;
                 color: #ffffff !important;
             }
 
@@ -285,6 +292,7 @@ class MC_Points_Admin {
             
             <h2 class="nav-tab-wrapper" style="margin-top:20px;">
                 <?php foreach($tabs as $key => $name): ?>
+                  
                     <a href="?page=mc-loyalty-settings&tab=<?php echo esc_attr($key); ?>" class="nav-tab <?php echo $current_tab === $key ? 'nav-tab-active' : ''; ?>">
                         <?php echo esc_html($name); ?>
                     </a>
@@ -311,8 +319,14 @@ class MC_Points_Admin {
                 case 'customization':
                     if (class_exists('MC_Tab_Customization')) { $tab_module = new MC_Tab_Customization(); $tab_module->render(); }
                     break;
+                case 'offers': // <--- Added Switch Handler
+                    if (class_exists('MC_Tab_Offers')) { $tab_module = new MC_Tab_Offers(); $tab_module->render(); }
+                    break;
                 case 'referrals':
                     if (class_exists('MC_Tab_Referrals')) { $tab_module = new MC_Tab_Referrals(); $tab_module->render(); }
+                    break;
+                case 'emails': // <--- THE MISSING CONNECTION!
+                    if (class_exists('MC_Tab_Emails')) { $tab_module = new MC_Tab_Emails(); $tab_module->render(); }
                     break;
                 default:
                     echo '<div class="mc-main-content" style="margin-top:20px;"><h2 style="margin-top:0; font-weight:800; border-bottom:2px solid #eee; padding-bottom:15px; margin-bottom:20px;">' . esc_html($tabs[$current_tab]) . '</h2><p>Module coming soon.</p></div>';
