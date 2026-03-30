@@ -88,7 +88,6 @@ class MC_Points_Account {
      */
     private function get_next_goal_points( $current_points ) {
         global $wpdb;
-        // Find the lowest point cost that is GREATER than their current balance
         $next_goal = $wpdb->get_var($wpdb->prepare("
             SELECT min(meta_value + 0) 
             FROM {$wpdb->postmeta} 
@@ -96,10 +95,9 @@ class MC_Points_Account {
         ", $current_points));
         
         if (!$next_goal) {
-            // If they can afford everything, set the highest catalog item as the max goal
             $next_goal = $wpdb->get_var("SELECT max(meta_value + 0) FROM {$wpdb->postmeta} WHERE meta_key = '_mc_points_redeem_price'");
         }
-        return $next_goal ? (int)$next_goal : 1000; // Fallback to 1000 if catalog is empty
+        return $next_goal ? (int)$next_goal : 1000; 
     }
 
     // -----------------------------------------------------------------------------------
@@ -124,7 +122,6 @@ class MC_Points_Account {
             $endpoint = !empty($custom['account_endpoint']) ? $custom['account_endpoint'] : 'mc-rewards';
             $label = !empty($custom['account_label']) ? $custom['account_label'] : 'Points & Rewards';
             
-            // Insert it elegantly before the logout button
             $logout = $items['customer-logout'] ?? 'Logout';
             unset($items['customer-logout']);
             $items[$endpoint] = $label;
@@ -154,7 +151,10 @@ class MC_Points_Account {
 
         $custom = get_option('mc_customization_settings', []);
         $default_tab = $custom['default_tab'] ?? 'catalog';
+        
+        // Settings Toggles
         $ref_enabled = get_option('mc_ref_enable', 'no') === 'yes';
+        $offers_enabled = get_option('mc_offers_enable', 'no') === 'yes';
         
         ?>
         <style>
@@ -182,8 +182,11 @@ class MC_Points_Account {
             <div class="mc-nav-scroll-wrapper">
                 <a href="#mc-tab-earn" class="mc-account-tab <?php echo $default_tab === 'earn' ? 'active' : ''; ?>" onclick="mcSwitchLoyaltyTab('earn'); return false;">Earn</a>
                 <a href="#mc-tab-catalog" class="mc-account-tab <?php echo $default_tab === 'catalog' ? 'active' : ''; ?>" onclick="mcSwitchLoyaltyTab('catalog'); return false;">Redeem</a>
-                <a href="#mc-tab-offers" class="mc-account-tab <?php echo $default_tab === 'offers' ? 'active' : ''; ?>" onclick="mcSwitchLoyaltyTab('offers'); return false;">Offers</a>
                 
+                <?php if ( $offers_enabled ): ?>
+                    <a href="#mc-tab-offers" class="mc-account-tab <?php echo $default_tab === 'offers' ? 'active' : ''; ?>" onclick="mcSwitchLoyaltyTab('offers'); return false;">Offers</a>
+                <?php endif; ?>
+
                 <?php if ( $ref_enabled ): ?>
                     <a href="#mc-tab-referrals" class="mc-account-tab <?php echo $default_tab === 'referrals' ? 'active' : ''; ?>" onclick="mcSwitchLoyaltyTab('referrals'); return false;">Refer & Earn</a>
                 <?php endif; ?>
@@ -197,9 +200,13 @@ class MC_Points_Account {
             <div id="mc-content-catalog" style="display: <?php echo $default_tab === 'catalog' ? 'block' : 'none'; ?>;">
                 <?php echo $this->shortcode_catalog(); ?>
             </div>
+            
+            <?php if ( $offers_enabled ): ?>
             <div id="mc-content-offers" style="display: <?php echo $default_tab === 'offers' ? 'block' : 'none'; ?>;">
                 <?php echo $this->shortcode_offers(); ?>
             </div>
+            <?php endif; ?>
+
             <div id="mc-content-referrals" style="display: <?php echo $default_tab === 'referrals' ? 'block' : 'none'; ?>;">
                 <?php if ( $ref_enabled ) echo $this->shortcode_referral(); ?>
             </div>
@@ -498,7 +505,25 @@ class MC_Points_Account {
         return ob_get_clean();
     }
 
+    /**
+     * [mc_rewards_offers]
+     * Now natively supports pulling full Elementor Templates by ID!
+     */
     public function shortcode_offers() {
+        if ( get_option('mc_offers_enable', 'no') !== 'yes' ) return '';
+
+        $template_id = get_option('mc_offers_elementor_template', '');
+        
+        // If an Elementor Template ID or shortcode is provided, render it!
+        if ( !empty($template_id) ) {
+            if ( is_numeric($template_id) ) {
+                return do_shortcode('[elementor-template id="' . esc_attr($template_id) . '"]');
+            } else {
+                return do_shortcode($template_id);
+            }
+        }
+
+        // Default Fallback UI if no template is provided
         ob_start();
         ?>
         <div style="padding: 30px; background: linear-gradient(135deg, #f6c064 0%, #e67e22 100%); border-radius: 12px; color: #fff; text-align: center; box-shadow: 0 10px 30px rgba(230, 126, 34, 0.3);">
@@ -509,10 +534,6 @@ class MC_Points_Account {
         return ob_get_clean();
     }
 
-    /**
-     * [mc_rewards_referral]
-     * Adds the Refer & Earn visual dashboard + Custom Role Check
-     */
     public function shortcode_referral() {
         if ( ! is_user_logged_in() || get_option('mc_ref_enable', 'no') !== 'yes' ) return '';
 
@@ -524,7 +545,6 @@ class MC_Points_Account {
         $is_approved = false;
         if ( $status === 'approved' ) $is_approved = true;
 
-        // Check if Custom Role naturally grants them access
         if ( get_option('mc_ref_custom_role_enable', 'no') === 'yes' ) {
             $role_name = get_option('mc_ref_custom_role_name', '');
             if ( !empty($role_name) ) {
@@ -564,7 +584,6 @@ class MC_Points_Account {
             return ob_get_clean();
         }
 
-        // They are approved (or approval not required)! Show the Dashboard.
         if ( !class_exists('MC_Points_Referrals') ) return '';
         
         $code = MC_Points_Referrals::get_user_referral_code($user_id);
