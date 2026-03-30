@@ -21,15 +21,13 @@ class MC_Tab_Customization {
         $current_sub = isset($_GET['sub']) ? sanitize_text_field($_GET['sub']) : 'general';
         
         $subtabs = [
-            'general'       => 'General',
+            'general'       => 'General & Guests',
             'shop'          => 'Points in Shop Pages',
             'product'       => 'Points in Product Page',
             'account'       => 'Points in My Account',
             'cart_checkout' => 'Points in Cart & Checkout',
-            'checkout_ui'   => 'Checkout UI & Popups', 
-            'giveaways'     => 'Auto-Giveaways UI',
+            'earning_auto'  => 'Auto Earning Displays',
             'reward_design' => 'Reward Cart Design', 
-            'earning_auto'  => 'Auto Earning Displays', 
             'labels'        => 'Labels'
         ];
 
@@ -58,16 +56,25 @@ class MC_Tab_Customization {
                     
                     <?php 
                     // ==========================================
-                    // GENERAL TAB
+                    // 1. GENERAL & GUESTS TAB
                     // ==========================================
                     if ($current_sub === 'general'): 
                         $hide_guest = $settings['hide_guest'] ?? 'no';
+                        $gp_enable = $settings['guest_prompt_enable'] ?? 'yes';
+                        $gp_bg = $settings['guest_prompt_bg'] ?? '#fef8ee';
+                        $gp_color = $settings['guest_prompt_color'] ?? '#333333';
+                        $gp_title = $settings['guest_prompt_title'] ?? 'Join our Loyalty Program!';
+                        $gp_desc = $settings['guest_prompt_desc'] ?? 'Create an account today to earn points on every purchase and unlock exclusive rewards.';
+                        $gp_btn_text = $settings['guest_prompt_btn_text'] ?? 'Sign Up Now';
+                        $gp_btn_url = $settings['guest_prompt_btn_url'] ?? '/my-account/';
+                        $gp_btn_bg = $settings['guest_prompt_btn_bg'] ?? '#d35400';
+                        $gp_btn_color = $settings['guest_prompt_btn_color'] ?? '#ffffff';
                     ?>
-                        <div class="mc-rule-card" style="padding:25px; border-left:4px solid #2271b1;">
+                        <div class="mc-rule-card" style="padding:25px; border-left:4px solid #2271b1; margin-bottom: 30px;">
                             <div class="mc-toggle-row">
                                 <div class="mc-form-info" style="margin:0;">
-                                    <span class="mc-form-label">Hide all messages to guest users</span>
-                                    <span class="mc-form-desc">Enable this if you want to set up gamification strategies ONLY for registered users. Unregistered guests will not see earning prompts.</span>
+                                    <span class="mc-form-label">Hide all standard messages to guest users</span>
+                                    <span class="mc-form-desc">Enable this to hide standard auto-earning prompts from unregistered guests.</span>
                                 </div>
                                 <label class="mc-toggle-switch">
                                     <input type="hidden" name="mc_custom[hide_guest]" value="no">
@@ -77,9 +84,67 @@ class MC_Tab_Customization {
                             </div>
                         </div>
 
+                        <div class="mc-rule-card" style="padding:25px; border-left:4px solid #9b59b6;">
+                            <h3 style="margin-top:0; border-bottom:1px solid #eee; padding-bottom:10px; margin-bottom:20px;">Guest Signup Prompt Designer</h3>
+                            <p style="color:#666; font-size:13px; margin-bottom:20px;">Use the shortcode <strong>[mc_guest_prompt]</strong> anywhere on your site (like the Cart page) to display a beautiful banner to logged-out users encouraging them to join.</p>
+
+                            <div class="mc-toggle-row" style="margin-bottom: 20px;">
+                                <div class="mc-form-info" style="margin:0;">
+                                    <span class="mc-form-label">Enable Guest Prompt Shortcode</span>
+                                </div>
+                                <label class="mc-toggle-switch">
+                                    <input type="hidden" name="mc_custom[guest_prompt_enable]" value="no">
+                                    <input type="checkbox" name="mc_custom[guest_prompt_enable]" value="yes" <?php checked($gp_enable, 'yes'); ?>>
+                                    <span class="mc-slider"></span>
+                                </label>
+                            </div>
+
+                            <div class="mc-form-row" style="display:flex; gap:20px; margin-bottom:20px;">
+                                <div style="flex:1;">
+                                    <span class="mc-form-label" style="font-weight: 600; display: block; margin-bottom: 5px;">Banner Title</span>
+                                    <input type="text" name="mc_custom[guest_prompt_title]" value="<?php echo esc_attr($gp_title); ?>" style="width:100%; font-weight:bold; padding: 6px;">
+                                </div>
+                                <div style="flex:2;">
+                                    <span class="mc-form-label" style="font-weight: 600; display: block; margin-bottom: 5px;">Description Text</span>
+                                    <input type="text" name="mc_custom[guest_prompt_desc]" value="<?php echo esc_attr($gp_desc); ?>" style="width:100%; padding: 6px;">
+                                </div>
+                            </div>
+
+                            <div class="mc-form-row" style="display:flex; gap:20px; margin-bottom:20px;">
+                                <div style="flex:1;">
+                                    <span class="mc-form-label" style="font-weight: 600; display: block; margin-bottom: 5px;">Button Text</span>
+                                    <input type="text" name="mc_custom[guest_prompt_btn_text]" value="<?php echo esc_attr($gp_btn_text); ?>" style="width:100%; padding: 6px;">
+                                </div>
+                                <div style="flex:1;">
+                                    <span class="mc-form-label" style="font-weight: 600; display: block; margin-bottom: 5px;">Button Target URL</span>
+                                    <input type="text" name="mc_custom[guest_prompt_btn_url]" value="<?php echo esc_attr($gp_btn_url); ?>" style="width:100%; padding: 6px;" placeholder="/my-account/">
+                                </div>
+                            </div>
+
+                            <h4 style="margin:30px 0 15px 0;">Banner Colors</h4>
+                            <div class="mc-form-row" style="display:flex; gap:40px; background:#f9f9f9; padding:20px; border-radius:8px; border:1px solid #eee;">
+                                <div>
+                                    <span class="mc-form-label" style="display: block; margin-bottom: 5px;">Background</span>
+                                    <input type="color" name="mc_custom[guest_prompt_bg]" value="<?php echo esc_attr($gp_bg); ?>" class="mc-color-picker-small">
+                                </div>
+                                <div>
+                                    <span class="mc-form-label" style="display: block; margin-bottom: 5px;">Text Color</span>
+                                    <input type="color" name="mc_custom[guest_prompt_color]" value="<?php echo esc_attr($gp_color); ?>" class="mc-color-picker-small">
+                                </div>
+                                <div>
+                                    <span class="mc-form-label" style="display: block; margin-bottom: 5px;">Button Color</span>
+                                    <input type="color" name="mc_custom[guest_prompt_btn_bg]" value="<?php echo esc_attr($gp_btn_bg); ?>" class="mc-color-picker-small">
+                                </div>
+                                <div>
+                                    <span class="mc-form-label" style="display: block; margin-bottom: 5px;">Button Text Color</span>
+                                    <input type="color" name="mc_custom[guest_prompt_btn_color]" value="<?php echo esc_attr($gp_btn_color); ?>" class="mc-color-picker-small">
+                                </div>
+                            </div>
+                        </div>
+
                     <?php 
                     // ==========================================
-                    // SHOP PAGES TAB
+                    // 2. SHOP PAGES TAB
                     // ==========================================
                     elseif ($current_sub === 'shop'): 
                         $shop_show = $settings['shop_show'] ?? 'yes';
@@ -92,7 +157,6 @@ class MC_Tab_Customization {
                             <div class="mc-toggle-row" style="margin-bottom:20px;">
                                 <div class="mc-form-info" style="margin:0;">
                                     <span class="mc-form-label">Show points messages in shop pages (loop)</span>
-                                    <span class="mc-form-desc">Shows prompt on Shop, Category, and Tag archive pages.</span>
                                 </div>
                                 <label class="mc-toggle-switch">
                                     <input type="hidden" name="mc_custom[shop_show]" value="no">
@@ -100,13 +164,11 @@ class MC_Tab_Customization {
                                     <span class="mc-slider"></span>
                                 </label>
                             </div>
-
                             <div class="mc-form-row">
                                 <span class="mc-form-label">Loop message text</span>
-                                <span class="mc-form-desc" style="color:#2271b1; font-weight:600; margin-bottom:8px;">Placeholders: <code>{points}</code>, <code>{points_label}</code>, <code>{price_discount_fixed_conversion}</code></span>
+                                <span class="mc-form-desc" style="color:#2271b1; font-weight:600; margin-bottom:8px;">Placeholders: <code>{points}</code>, <code>{points_label}</code></span>
                                 <?php wp_editor($shop_msg, 'mc_shop_msg_editor', ['textarea_name' => 'mc_custom[shop_msg]', 'textarea_rows' => 5, 'media_buttons' => true]); ?>
                             </div>
-
                             <div class="mc-form-row" style="display:flex; gap:30px; margin-top:20px; background:#f9f9f9; padding:15px; border-radius:6px; border:1px solid #eee;">
                                 <div><span class="mc-form-label">Text Color</span><input type="color" name="mc_custom[shop_color_text]" value="<?php echo esc_attr($shop_color_text); ?>" class="mc-color-picker-small"></div>
                                 <div><span class="mc-form-label">Background Color</span><input type="color" name="mc_custom[shop_color_bg]" value="<?php echo esc_attr($shop_color_bg); ?>" class="mc-color-picker-small"></div>
@@ -116,7 +178,7 @@ class MC_Tab_Customization {
 
                     <?php 
                     // ==========================================
-                    // PRODUCT PAGE TAB
+                    // 3. PRODUCT PAGE TAB
                     // ==========================================
                     elseif ($current_sub === 'product'): 
                         $prod_show = $settings['prod_show'] ?? 'yes';
@@ -145,23 +207,17 @@ class MC_Tab_Customization {
                                 <div class="mc-form-info"><span class="mc-form-label">Update the message when product quantity changes</span></div>
                                 <label class="mc-toggle-switch"><input type="hidden" name="mc_custom[prod_update_qty]" value="no"><input type="checkbox" name="mc_custom[prod_update_qty]" value="yes" <?php checked($prod_update_qty, 'yes'); ?>><span class="mc-slider"></span></label>
                             </div>
-
                             <div class="mc-form-row" style="margin-bottom:20px;">
                                 <span class="mc-form-label">Message Position</span>
                                 <select name="mc_custom[prod_pos]" style="width:100%; max-width:400px;">
                                     <option value="before_cart" <?php selected($prod_pos, 'before_cart'); ?>>Before "Add to Cart" Button</option>
                                     <option value="after_cart" <?php selected($prod_pos, 'after_cart'); ?>>After "Add to Cart" Button</option>
-                                    <option value="before_excerpt" <?php selected($prod_pos, 'before_excerpt'); ?>>Before excerpt</option>
-                                    <option value="after_excerpt" <?php selected($prod_pos, 'after_excerpt'); ?>>After excerpt</option>
-                                    <option value="after_meta" <?php selected($prod_pos, 'after_meta'); ?>>After product meta</option>
                                 </select>
                             </div>
-
                             <div class="mc-form-row">
                                 <span class="mc-form-label">Single product page message</span>
                                 <?php wp_editor($prod_msg, 'mc_prod_msg_editor', ['textarea_name' => 'mc_custom[prod_msg]', 'textarea_rows' => 5, 'media_buttons' => true]); ?>
                             </div>
-
                             <div class="mc-form-row" style="display:flex; gap:30px; margin-top:20px; background:#f9f9f9; padding:15px; border-radius:6px; border:1px solid #eee;">
                                 <div><span class="mc-form-label">Text Color</span><input type="color" name="mc_custom[prod_color_text]" value="<?php echo esc_attr($prod_color_text); ?>" class="mc-color-picker-small"></div>
                                 <div><span class="mc-form-label">Background Color</span><input type="color" name="mc_custom[prod_color_bg]" value="<?php echo esc_attr($prod_color_bg); ?>" class="mc-color-picker-small"></div>
@@ -170,13 +226,11 @@ class MC_Tab_Customization {
 
                         <div class="mc-rule-card" style="padding:25px; border-left:4px solid #8e44ad;">
                             <h3 style="margin-top:0; border-bottom:1px solid #eee; padding-bottom:10px; margin-bottom:20px;">Redemption Badges</h3>
-                            
                             <div class="mc-form-row" style="display:flex; gap:40px; margin-bottom:20px;">
                                 <div><span class="mc-form-label">Background Color</span><input type="color" name="mc_custom[badge_bg]" value="<?php echo esc_attr($badge_bg); ?>" class="mc-color-picker-small"></div>
                                 <div><span class="mc-form-label">Border Color</span><input type="color" name="mc_custom[badge_border]" value="<?php echo esc_attr($badge_border); ?>" class="mc-color-picker-small"></div>
                                 <div><span class="mc-form-label">Text Color</span><input type="color" name="mc_custom[badge_text_color]" value="<?php echo esc_attr($badge_text); ?>" class="mc-color-picker-small"></div>
                             </div>
-
                             <div class="mc-form-row" style="display:flex; gap:20px; margin-bottom:20px; background:#f9f9f9; padding:15px; border-radius:6px; border:1px solid #eee;">
                                 <div style="flex:1;">
                                     <span class="mc-form-label">Icon Source</span>
@@ -194,15 +248,9 @@ class MC_Tab_Customization {
                                     <select name="mc_custom[badge_font_icon]" style="width:100%;">
                                         <option value="dashicons-awards" <?php selected($badge_font_icon, 'dashicons-awards'); ?>>🏆 Award / Ribbon</option>
                                         <option value="dashicons-star-filled" <?php selected($badge_font_icon, 'dashicons-star-filled'); ?>>⭐ Solid Star</option>
-                                        <option value="dashicons-heart" <?php selected($badge_font_icon, 'dashicons-heart'); ?>>❤️ Heart</option>
                                     </select>
                                 </div>
-                                <div style="flex:0.5; display:none;" class="mc-icon-mode-font">
-                                    <span class="mc-form-label">Icon Color</span>
-                                    <input type="color" name="mc_custom[badge_icon_color]" value="<?php echo esc_attr($badge_icon_color); ?>" class="mc-color-picker-small">
-                                </div>
                             </div>
-
                             <div class="mc-form-row">
                                 <span class="mc-form-label">Badge Text Format</span>
                                 <span class="mc-form-desc" style="color:#2271b1;">Variables: <code>{icon}</code>, <code>{points}</code></span>
@@ -212,7 +260,7 @@ class MC_Tab_Customization {
 
                     <?php 
                     // ==========================================
-                    // MY ACCOUNT TAB
+                    // 4. MY ACCOUNT TAB
                     // ==========================================
                     elseif ($current_sub === 'account'): 
                         $acc_show = $settings['account_show'] ?? 'yes';
@@ -220,7 +268,6 @@ class MC_Tab_Customization {
                         $acc_endpoint = $settings['account_endpoint'] ?? 'mc-rewards';
                         $acc_show_value = $settings['account_show_value'] ?? 'yes';
                         $acc_show_orders = $settings['account_show_orders'] ?? 'yes';
-                        $acc_show_email = $settings['account_show_email'] ?? 'yes';
                         
                         $default_tab = $settings['default_tab'] ?? 'catalog';
                         $dash_title_size = $settings['dash_title_size'] ?? '28';
@@ -238,7 +285,6 @@ class MC_Tab_Customization {
                                 <div class="mc-form-info"><span class="mc-form-label">Show points on My Account menu</span></div>
                                 <label class="mc-toggle-switch"><input type="hidden" name="mc_custom[account_show]" value="no"><input type="checkbox" name="mc_custom[account_show]" value="yes" <?php checked($acc_show, 'yes'); ?>><span class="mc-slider"></span></label>
                             </div>
-
                             <div class="mc-form-row" style="display:flex; gap:20px; margin-bottom:20px;">
                                 <div style="flex:1;">
                                     <span class="mc-form-label">Label for points section</span>
@@ -249,7 +295,6 @@ class MC_Tab_Customization {
                                     <input type="text" name="mc_custom[account_endpoint]" value="<?php echo esc_attr($acc_endpoint); ?>" style="width:100%;">
                                 </div>
                             </div>
-
                             <div class="mc-toggle-row" style="margin-bottom:15px; border-top:1px solid #eee; padding-top:15px;">
                                 <div class="mc-form-info"><span class="mc-form-label">Show points value (Money Worth)</span></div>
                                 <label class="mc-toggle-switch"><input type="hidden" name="mc_custom[account_show_value]" value="no"><input type="checkbox" name="mc_custom[account_show_value]" value="yes" <?php checked($acc_show_value, 'yes'); ?>><span class="mc-slider"></span></label>
@@ -309,7 +354,37 @@ class MC_Tab_Customization {
 
                     <?php 
                     // ==========================================
-                    // AUTO EARNING DISPLAYS (NEW TAB!)
+                    // 5. CART & CHECKOUT TAB
+                    // ==========================================
+                    elseif ($current_sub === 'cart_checkout'): 
+                        $cart_show = $settings['cart_show'] ?? 'yes';
+                        $cart_msg = $settings['cart_msg'] ?? 'Complete this order to earn {points} {points_label}!';
+                        $checkout_show = $settings['checkout_show'] ?? 'yes';
+                        $checkout_msg = $settings['checkout_msg'] ?? 'Complete this order to earn {points} {points_label}!';
+                    ?>
+                        <div class="mc-rule-card" style="padding:25px; border-left:4px solid #e74c3c;">
+                            <div class="mc-toggle-row" style="margin-bottom:15px;">
+                                <div class="mc-form-info"><span class="mc-form-label">Show points in Cart page</span></div>
+                                <label class="mc-toggle-switch"><input type="hidden" name="mc_custom[cart_show]" value="no"><input type="checkbox" name="mc_custom[cart_show]" value="yes" <?php checked($cart_show, 'yes'); ?>><span class="mc-slider"></span></label>
+                            </div>
+                            <div class="mc-form-row" style="margin-bottom:30px;">
+                                <span class="mc-form-label">Message text in cart</span>
+                                <?php wp_editor($cart_msg, 'mc_cart_msg_editor', ['textarea_name' => 'mc_custom[cart_msg]', 'textarea_rows' => 4, 'media_buttons' => false]); ?>
+                            </div>
+
+                            <div class="mc-toggle-row" style="margin-bottom:15px; border-top:1px solid #eee; padding-top:20px;">
+                                <div class="mc-form-info"><span class="mc-form-label">Show points in Checkout page</span></div>
+                                <label class="mc-toggle-switch"><input type="hidden" name="mc_custom[checkout_show]" value="no"><input type="checkbox" name="mc_custom[checkout_show]" value="yes" <?php checked($checkout_show, 'yes'); ?>><span class="mc-slider"></span></label>
+                            </div>
+                            <div class="mc-form-row">
+                                <span class="mc-form-label">Message text in checkout</span>
+                                <?php wp_editor($checkout_msg, 'mc_check_msg_editor', ['textarea_name' => 'mc_custom[checkout_msg]', 'textarea_rows' => 4, 'media_buttons' => false]); ?>
+                            </div>
+                        </div>
+
+                    <?php 
+                    // ==========================================
+                    // 6. AUTO EARNING DISPLAYS TAB
                     // ==========================================
                     elseif ($current_sub === 'earning_auto'): 
                         $earn_show_single = $settings['earn_show_single'] ?? 'yes';
@@ -337,17 +412,17 @@ class MC_Tab_Customization {
                             <h4 style="margin: 30px 0 15px 0; border-bottom: 1px solid #eee; padding-bottom: 10px;">Display Locations</h4>
 
                             <div class="mc-toggle-row" style="margin-bottom:15px;">
-                                <div class="mc-form-info"><span class="mc-form-label">Single Product Page</span><span class="mc-form-desc">Show under the Add to Cart button on standard products.</span></div>
+                                <div class="mc-form-info"><span class="mc-form-label">Single Product Page</span></div>
                                 <label class="mc-toggle-switch"><input type="hidden" name="mc_custom[earn_show_single]" value="no"><input type="checkbox" name="mc_custom[earn_show_single]" value="yes" <?php checked($earn_show_single, 'yes'); ?>><span class="mc-slider"></span></label>
                             </div>
                             
                             <div class="mc-toggle-row" style="margin-bottom:15px;">
-                                <div class="mc-form-info"><span class="mc-form-label">MealCrafter Combo</span><span class="mc-form-desc">Show next to the Add to Cart button on Combo products.</span></div>
+                                <div class="mc-form-info"><span class="mc-form-label">MealCrafter Combo</span></div>
                                 <label class="mc-toggle-switch"><input type="hidden" name="mc_custom[earn_show_combo]" value="no"><input type="checkbox" name="mc_custom[earn_show_combo]" value="yes" <?php checked($earn_show_combo, 'yes'); ?>><span class="mc-slider"></span></label>
                             </div>
 
                             <div class="mc-toggle-row" style="margin-bottom:15px;">
-                                <div class="mc-form-info"><span class="mc-form-label">MealCrafter Grouped</span><span class="mc-form-desc">Show when a grouped product modal/page appears.</span></div>
+                                <div class="mc-form-info"><span class="mc-form-label">MealCrafter Grouped</span></div>
                                 <label class="mc-toggle-switch"><input type="hidden" name="mc_custom[earn_show_grouped]" value="no"><input type="checkbox" name="mc_custom[earn_show_grouped]" value="yes" <?php checked($earn_show_grouped, 'yes'); ?>><span class="mc-slider"></span></label>
                             </div>
 
@@ -357,7 +432,7 @@ class MC_Tab_Customization {
                             </div>
 
                             <div class="mc-toggle-row" style="margin-bottom:15px;">
-                                <div class="mc-form-info"><span class="mc-form-label">Cart Page</span><span class="mc-form-desc">Show below the cart totals.</span></div>
+                                <div class="mc-form-info"><span class="mc-form-label">Cart Page</span></div>
                                 <label class="mc-toggle-switch"><input type="hidden" name="mc_custom[earn_show_cart]" value="no"><input type="checkbox" name="mc_custom[earn_show_cart]" value="yes" <?php checked($earn_show_cart, 'yes'); ?>><span class="mc-slider"></span></label>
                             </div>
                             <div class="mc-form-row" style="margin-bottom:30px;">
@@ -366,19 +441,18 @@ class MC_Tab_Customization {
                             </div>
 
                             <div class="mc-toggle-row" style="margin-bottom:15px;">
-                                <div class="mc-form-info"><span class="mc-form-label">Checkout Page</span><span class="mc-form-desc">Show right after the total to pay.</span></div>
+                                <div class="mc-form-info"><span class="mc-form-label">Checkout Page</span></div>
                                 <label class="mc-toggle-switch"><input type="hidden" name="mc_custom[earn_show_checkout]" value="no"><input type="checkbox" name="mc_custom[earn_show_checkout]" value="yes" <?php checked($earn_show_checkout, 'yes'); ?>><span class="mc-slider"></span></label>
                             </div>
                             <div class="mc-form-row" style="margin-bottom:30px;">
                                 <span class="mc-form-label">Checkout Page Text</span>
                                 <input type="text" name="mc_custom[earn_msg_checkout]" value="<?php echo esc_attr($earn_msg_checkout); ?>" style="width:100%; max-width: 500px;">
                             </div>
-
                         </div>
 
                     <?php 
                     // ==========================================
-                    // REWARD CART DESIGN TAB
+                    // 7. REWARD CART DESIGN TAB
                     // ==========================================
                     elseif ($current_sub === 'reward_design'): 
                         $congrats = $settings['cart_ui_congrats'] ?? '🎉 Congratulations!';
@@ -397,7 +471,6 @@ class MC_Tab_Customization {
                     ?>
                         <div class="mc-rule-card" style="padding:25px; border-left:4px solid #e67e22; margin-bottom:30px;">
                             <h3 style="margin-top:0; border-bottom:1px solid #eee; padding-bottom:10px; margin-bottom:20px;">Reward Cart Row Texts</h3>
-                            <p style="margin-top:-10px; margin-bottom:20px; color:#666; font-size:13px;">Edit the labels and warnings displayed inside the Cart table box when a user redeems a product.</p>
                             
                             <div class="mc-form-row" style="margin-bottom:20px;">
                                 <span class="mc-form-label">Congratulations Message</span>
@@ -458,7 +531,7 @@ class MC_Tab_Customization {
 
                     <?php 
                     // ==========================================
-                    // LABELS TAB
+                    // 8. LABELS TAB
                     // ==========================================
                     elseif ($current_sub === 'labels'): 
                         $defaults = [
