@@ -71,7 +71,8 @@ $core_files = [
     'class-mc-points-earning.php',
     'class-mc-points-checkout.php',
     'class-mc-points-account.php',
-    'class-mc-points-expiration.php'
+    'class-mc-points-expiration.php',
+    'class-mc-points-referrals.php' // Added Referral Engine Core
 ];
 foreach ( $core_files as $file ) {
     if ( file_exists( MC_LOYALTY_PATH . 'includes/' . $file ) ) { require_once MC_LOYALTY_PATH . 'includes/' . $file; }
@@ -84,7 +85,8 @@ $tab_files = [
     'class-mc-tab-redeeming.php',
     'class-mc-tab-product-level.php',
     'class-mc-tab-catalog.php',
-    'class-mc-tab-customization.php'
+    'class-mc-tab-customization.php',
+    'class-mc-tab-referrals.php' // Added Referral Admin Tab
 ];
 foreach ( $tab_files as $file ) {
     if ( file_exists( MC_LOYALTY_PATH . 'includes/admin-tabs/' . $file ) ) { require_once MC_LOYALTY_PATH . 'includes/admin-tabs/' . $file; }
