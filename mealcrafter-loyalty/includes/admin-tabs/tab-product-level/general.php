@@ -38,7 +38,29 @@
                 <span class="mc-form-label" style="font-weight: 600; display: block; margin-bottom: 5px;">Max Redemptions Per Cart</span>
                 <input type="number" name="mc_pts_prod_max_per_cart" value="<?php echo esc_attr(get_option('mc_pts_prod_max_per_cart', '1')); ?>" style="width:100px; padding: 6px;">
             </div>
-        </div>
+
+            <div class="mc-form-row" style="margin-bottom: 20px; padding-top: 15px; border-top: 1px dashed #eee;">
+                <span class="mc-form-label" style="font-weight: 600; display: block; margin-bottom: 5px;">Target Users</span>
+                <span class="mc-form-desc" style="color: #666; font-size: 13px; display: block; margin-bottom: 8px;">Select who is allowed to use product-level redemption.</span>
+                <select name="mc_pts_prod_target_users" id="mc_pts_prod_target_users" style="width:100%; max-width:400px; padding: 6px;">
+                    <?php $target_users = get_option('mc_pts_prod_target_users', 'all'); ?>
+                    <option value="all" <?php selected($target_users, 'all'); ?>>All Registered Users</option>
+                    <option value="specific_roles" <?php selected($target_users, 'specific_roles'); ?>>Specific Roles</option>
+                </select>
+            </div>
+
+            <div class="mc-form-row" id="mc_pts_prod_roles_wrapper" style="margin-bottom: 20px; <?php echo $target_users === 'specific_roles' ? '' : 'display:none;'; ?>">
+                <span class="mc-form-label" style="font-weight: 600; display: block; margin-bottom: 5px;">Target Roles</span>
+                <select name="mc_pts_prod_target_roles[]" class="wc-enhanced-select" multiple="multiple" style="width:100%; max-width:600px;">
+                    <?php 
+                    global $wp_roles;
+                    $saved_roles = get_option('mc_pts_prod_target_roles', ['customer']);
+                    foreach($wp_roles->get_names() as $role_key => $role_name): ?>
+                        <option value="<?php echo esc_attr($role_key); ?>" <?php echo in_array($role_key, (array)$saved_roles) ? 'selected' : ''; ?>><?php echo esc_html($role_name); ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            </div>
 
         <div class="mc-form-section mc-rule-card" style="padding:25px; border-left:4px solid #8e44ad; margin-bottom: 30px;">
             <h3 style="margin-top:0; border-bottom:1px solid #eee; padding-bottom:10px; margin-bottom:20px;">Product Redemption Modal Design</h3>
@@ -105,3 +127,18 @@
         </p>
     </form>
 </div>
+
+<script>
+jQuery(document).ready(function($) {
+    if ($.fn.selectWoo) {
+        $('.wc-enhanced-select').selectWoo({ width: '100%' });
+    }
+    $('#mc_pts_prod_target_users').on('change', function() {
+        if ($(this).val() === 'specific_roles') {
+            $('#mc_pts_prod_roles_wrapper').slideDown();
+        } else {
+            $('#mc_pts_prod_roles_wrapper').slideUp();
+        }
+    });
+});
+</script>
