@@ -38,9 +38,20 @@ class MC_Points_Checkout {
         add_action( 'wp_ajax_mc_remove_product_redemption_cart', [$this, 'ajax_remove_product_cart'] );
         
         add_action( 'woocommerce_cart_calculate_fees', [$this, 'apply_points_fee'], 9999 );
+        
+        // CRITICAL FIX: Tag the order item before checkout completes so the earning engine knows it's the reward!
+        add_action( 'woocommerce_checkout_create_order_line_item', [$this, 'tag_redeemed_order_item'], 10, 4 );
+
         add_action( 'woocommerce_checkout_order_processed', [$this, 'process_order_points_deduction'], 10, 1 );
 
         add_action( 'wp_footer', [$this, 'render_redemption_modal_and_js'] );
+    }
+
+    public function tag_redeemed_order_item( $item, $cart_item_key, $values, $order ) {
+        $redeemed_key = WC()->session->get('mc_redeemed_cart_item');
+        if ( $redeemed_key === $cart_item_key ) {
+            $item->add_meta_data( '_mc_is_redeemed', 'yes', true );
+        }
     }
 
     // -----------------------------------------------------------------------------------
@@ -205,11 +216,15 @@ class MC_Points_Checkout {
         $custom = get_option('mc_customization_settings', []);
         $bg_color = $custom['cart_ui_bg_color'] ?? '#fdfbf7';
         $border_color = $custom['cart_ui_border_color'] ?? '#f6c064';
+        
+        // Dynamically pull border variables from backend settings
+        $border_style = $custom['cart_ui_border_style'] ?? 'dashed';
+        $border_weight = $custom['cart_ui_border_weight'] ?? '2';
         ?>
         <style>
             tr.mc-reward-active-row {
                 background-color: <?php echo esc_attr($bg_color); ?> !important;
-                border: 2px dashed <?php echo esc_attr($border_color); ?> !important;
+                border: <?php echo esc_attr($border_weight); ?>px <?php echo esc_attr($border_style); ?> <?php echo esc_attr($border_color); ?> !important;
                 box-shadow: inset 0 0 10px rgba(246, 192, 100, 0.1) !important;
             }
             tr.mc-reward-active-row td {
@@ -245,15 +260,13 @@ class MC_Points_Checkout {
                 $base_val = get_option('mc_pts_prod_base_price_only', 'yes');
                 $base_only = in_array( strtolower( (string) $base_val ), ['yes', 'on', '1', 'true'], true );
                 
-                // Fetch dynamic labels & colors from the Customization Dashboard
+                $congrats_text = get_option('mc_cart_ui_congrats', '🎉 Congratulations!');
+                $free_text = get_option('mc_cart_ui_free', 'FREE');
+                $note_text = get_option('mc_cart_ui_note', '* Note: Customer pays for premium upgrades.');
+                $pts_label = get_option('mc_cart_ui_pts_label', 'pts');
+                $remove_text = get_option('mc_cart_ui_remove', 'Remove Reward');
+                
                 $custom = get_option('mc_customization_settings', []);
-                $congrats_text = $custom['cart_ui_congrats'] ?? '🎉 Congratulations!';
-                $free_text = $custom['cart_ui_free'] ?? 'FREE';
-                $note_text = $custom['cart_ui_note'] ?? '* Note: Customer pays for premium upgrades.';
-                $pts_label = $custom['cart_ui_pts_label'] ?? 'pts';
-                $remove_text = $custom['cart_ui_remove'] ?? 'Remove Reward';
-                $border_weight = $custom['cart_ui_border_weight'] ?? '2';
-                $border_color = $custom['cart_ui_border_color'] ?? '#e67e22';
                 $congrats_color = $custom['cart_ui_congrats_color'] ?? '#e67e22';
                 $free_color = $custom['cart_ui_free_color'] ?? '#2ecc71';
                 $note_color = $custom['cart_ui_note_color'] ?? '#d35400';
@@ -309,8 +322,8 @@ class MC_Points_Checkout {
                             }
                         }
 
-                        // 3. Build the beautiful nested box inside the table row column
-                        $html = '<div style="margin-top: 12px; padding: 12px 15px; border: ' . esc_attr($border_weight) . 'px ' . esc_attr($border_style) . ' ' . esc_attr($border_color) . '; border-radius: 8px;">';
+                        // 3. Build the beautiful nested box inside the table row column - ALL DYNAMIC SETTINGS NOW!
+                        $html = '<div style="margin-top: 5px; padding: 5px 5px; border: ' . esc_attr($border_weight) . 'px ' . esc_attr($border_style) . ' ' . esc_attr($border_color) . '; border-radius: 8px;">';
                         $html .= '<div style="font-size: 11px; text-transform: uppercase; font-weight: 800; color: ' . esc_attr($congrats_color) . '; margin-bottom: 4px; letter-spacing: 0.5px;">' . esc_html($congrats_text) . '</div>';
 
                         // Base Item, Quantity (Injected Inline), and Free/Pts Block
@@ -349,7 +362,7 @@ class MC_Points_Checkout {
                         }
 
                         // Removal Button
-                        $html .= '<div style="margin-top: 15px; padding-top: 10px; border-top: 1px solid #eedcc9; text-align: right;">';
+                        $html .= '<div style=" text-align: right;">';
                         $html .= '<a href="#" class="mc-remove-product-redemption" style="font-size: 11px; color: #e74c3c; font-weight: bold; text-decoration: underline;">' . esc_html($remove_text) . '</a>';
                         $html .= '</div>';
                         
