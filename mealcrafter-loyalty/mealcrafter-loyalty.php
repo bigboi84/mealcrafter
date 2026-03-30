@@ -2,7 +2,7 @@
 /**
  * Plugin Name: MealCrafter - Points & Rewards
  * Description: Hybrid loyalty system with cash conversion, inline checkout redemption, and account progress tracking.
- * Version: 1.0.4
+ * Version: 1.0.6
  * Author: Sling
  */
 
@@ -11,9 +11,6 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 define( 'MC_LOYALTY_PATH', plugin_dir_path( __FILE__ ) );
 define( 'MC_LOYALTY_URL', plugin_dir_url( __FILE__ ) );
 
-// =====================================================================
-// 1. DATABASE INSTALLATION
-// =====================================================================
 register_activation_hook( __FILE__, 'mc_loyalty_install_db' );
 function mc_loyalty_install_db() {
     global $wpdb;
@@ -35,50 +32,58 @@ function mc_loyalty_install_db() {
     dbDelta( $sql );
 }
 
-// =====================================================================
-// 2. GLOBAL POINT CALCULATOR FUNCTIONS
-// =====================================================================
-function mc_get_user_points($user_id) {
-    if (!$user_id) return 0;
-    global $wpdb;
-    $table = $wpdb->prefix . 'mc_points_transactions';
-    $balance = $wpdb->get_var($wpdb->prepare("SELECT SUM(points) FROM $table WHERE user_id = %d", $user_id));
-    return (float) $balance ?: 0;
+if ( ! function_exists('mc_get_user_points') ) {
+    function mc_get_user_points($user_id) {
+        if (!$user_id) return 0;
+        global $wpdb;
+        $table = $wpdb->prefix . 'mc_points_transactions';
+        $balance = $wpdb->get_var($wpdb->prepare("SELECT SUM(points) FROM $table WHERE user_id = %d", $user_id));
+        return (float) $balance ?: 0;
+    }
 }
 
-function mc_update_user_points($user_id, $points, $type = 'earned', $description = '', $order_id = null) {
-    if (!$user_id || $points == 0) return false;
-    global $wpdb;
-    $table = $wpdb->prefix . 'mc_points_transactions';
-    
-    return $wpdb->insert($table, [
-        'user_id'     => $user_id,
-        'points'      => $points,
-        'type'        => $type,
-        'order_id'    => $order_id,
-        'description' => $description,
-        'created_at'  => current_time('mysql')
-    ]);
+if ( ! function_exists('mc_update_user_points') ) {
+    function mc_update_user_points($user_id, $points, $type = 'earned', $description = '', $order_id = null) {
+        if (!$user_id || $points == 0) return false;
+        global $wpdb;
+        $table = $wpdb->prefix . 'mc_points_transactions';
+        
+        return $wpdb->insert($table, [
+            'user_id'     => $user_id,
+            'points'      => $points,
+            'type'        => $type,
+            'order_id'    => $order_id,
+            'description' => $description,
+            'created_at'  => current_time('mysql')
+        ]);
+    }
 }
 
-// =====================================================================
-// 3. SMART FILE LOADER (Modular Architecture)
-// =====================================================================
-
-// Load Core Logic Files
+// SAFE CORE LOADER
 $core_files = [
     'class-mc-points-admin.php',
     'class-mc-points-earning.php',
     'class-mc-points-checkout.php',
     'class-mc-points-account.php',
     'class-mc-points-expiration.php',
-    'class-mc-points-referrals.php' // Added Referral Engine Core
+    'class-mc-points-referrals.php',
+    'class-mc-points-offers.php',
+    'class-mc-emails.php' // <-- ADDED THIS!
 ];
 foreach ( $core_files as $file ) {
-    if ( file_exists( MC_LOYALTY_PATH . 'includes/' . $file ) ) { require_once MC_LOYALTY_PATH . 'includes/' . $file; }
+    if ( file_exists( MC_LOYALTY_PATH . 'includes/' . $file ) ) { 
+        require_once MC_LOYALTY_PATH . 'includes/' . $file; 
+    }
 }
 
-// Load Admin Tab Modules
+// SAFE ELEMENTOR LOADER
+add_action( 'elementor/init', function() {
+    if ( file_exists( MC_LOYALTY_PATH . 'includes/class-mc-elementor-integration.php' ) ) { 
+        require_once MC_LOYALTY_PATH . 'includes/class-mc-elementor-integration.php'; 
+    }
+});
+
+// SAFE ADMIN TAB LOADER
 $tab_files = [
     'class-mc-tab-customers.php',
     'class-mc-tab-options.php',
@@ -86,8 +91,12 @@ $tab_files = [
     'class-mc-tab-product-level.php',
     'class-mc-tab-catalog.php',
     'class-mc-tab-customization.php',
-    'class-mc-tab-referrals.php' // Added Referral Admin Tab
+    'class-mc-tab-offers.php',
+    'class-mc-tab-referrals.php',
+    'class-mc-tab-emails.php' // <-- ADDED THIS!
 ];
 foreach ( $tab_files as $file ) {
-    if ( file_exists( MC_LOYALTY_PATH . 'includes/admin-tabs/' . $file ) ) { require_once MC_LOYALTY_PATH . 'includes/admin-tabs/' . $file; }
+    if ( file_exists( MC_LOYALTY_PATH . 'includes/admin-tabs/' . $file ) ) { 
+        require_once MC_LOYALTY_PATH . 'includes/admin-tabs/' . $file; 
+    }
 }
