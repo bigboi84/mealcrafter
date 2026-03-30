@@ -153,6 +153,7 @@ class MC_Points_Admin {
             'product_level' => 'Product-Level',
             'catalog'       => 'Reward Catalog',
             'customization' => 'Customization',
+            'referrals'     => 'Referral Program', // Added Referral Tab
             'emails'        => 'Emails'
         ];
 
@@ -309,6 +310,9 @@ class MC_Points_Admin {
                     break;
                 case 'customization':
                     if (class_exists('MC_Tab_Customization')) { $tab_module = new MC_Tab_Customization(); $tab_module->render(); }
+                    break;
+                case 'referrals':
+                    if (class_exists('MC_Tab_Referrals')) { $tab_module = new MC_Tab_Referrals(); $tab_module->render(); }
                     break;
                 default:
                     echo '<div class="mc-main-content" style="margin-top:20px;"><h2 style="margin-top:0; font-weight:800; border-bottom:2px solid #eee; padding-bottom:15px; margin-bottom:20px;">' . esc_html($tabs[$current_tab]) . '</h2><p>Module coming soon.</p></div>';
